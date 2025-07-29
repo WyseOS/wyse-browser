@@ -1,0 +1,86 @@
+{
+    "name": "twitter_search_save_csv",
+    "type": "flow",
+    "description": "Search tweets from Twitter with twitter_auth_token and save results to a csv file.",
+    "version": "0.1.0",
+    "webpage_url": "x.com",
+    "nodes": [
+        {
+            "name": "FlowStart",
+            "type": "worklet",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Twitter",
+            "type": "worklet",
+            "version": "0.1.0",
+            "properties": {
+                "twitter_auth_token": "$TwitterAuthToken"
+            }
+        },
+        {
+            "name": "IOUtil",
+            "type": "worklet",
+            "version": "0.1.0"
+        },
+        {
+            "name": "FlowEnd",
+            "type": "worklet",
+            "version": "0.1.0"
+        }
+    ],
+    "connections": [
+        {
+            "name": "start the flow, run twitter search",
+            "src": {
+                "worklet": "FlowStart",
+                "action": "action_flow_start"
+            },
+            "dest": [
+                {
+                    "worklet": "Twitter",
+                    "action": "action_search"
+                }
+            ]
+        },
+        {
+            "name": "send search results to runtime json2csv",
+            "src": {
+                "worklet": "Twitter",
+                "action": "action_search"
+            },
+            "dest": [
+                {
+                    "worklet": "IOUtil",
+                    "action": "action_json2csv"
+                }
+            ]
+        },
+        {
+            "name": "exported to file, flow ends",
+            "src": {
+                "worklet": "IOUtil",
+                "action": "action_json2csv"
+            },
+            "dest": [
+                {
+                    "worklet": "FlowEnd",
+                    "action": "action_flow_end"
+                }
+            ]
+        }
+    ],
+    "properties": {
+        "TwitterAuthToken": "$TwitterAuthToken"
+    },
+    "parameters": [
+        {
+            "name": "searchKeyword",
+            "value_type": "string"
+        },
+        {
+            "name": "targetTweetCount",
+            "value_type": "number"
+        }
+    ]
+}

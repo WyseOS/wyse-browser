@@ -1,0 +1,55 @@
+{
+    "name": "wallet_connect_qr_check_owlto",
+    "type": "flow",
+    "description": "Connect to a wallet and check if the qr code is scanned. It is specific for WalletConnect on Owlto Finance.",
+    "version": "0.1.0",
+    "webpage_url": "owlto.finance",
+    "nodes": [
+        {
+            "name": "FlowStart",
+            "type": "worklet",
+            "version": "0.1.0"
+        },
+        {
+            "name": "WalletConnect",
+            "type": "worklet",
+            "version": "0.1.0",
+            "properties": {}
+        },
+        {
+            "name": "FlowEnd",
+            "type": "worklet",
+            "version": "0.1.0"
+        }
+    ],
+    "connections": [
+        {
+            "name": "start the flow, check if qr code is scanned",
+            "src": {
+                "worklet": "FlowStart",
+                "action": "action_flow_start"
+            },
+            "dest": [
+                {
+                    "worklet": "WalletConnect",
+                    "action": "action_wallet_connect_check_scan_qrcode_from_owlto"
+                }
+            ]
+        },
+        {
+            "name": "flow ends",
+            "src": {
+                "worklet": "WalletConnect",
+                "action": "action_wallet_connect_check_scan_qrcode_from_owlto"
+            },
+            "dest": [
+                {
+                    "worklet": "FlowEnd",
+                    "action": "action_flow_end"
+                }
+            ]
+        }
+    ],
+    "properties": {},
+    "parameters": []
+}

@@ -1,0 +1,26 @@
+{
+  "type": "worklet",
+  "name": "WalletTransfer",
+  "version": "0.1.0",
+  "dependencies": [],
+  "actions": {
+    "action_wallet_transfer_from_uniswap": {
+      "description": "Transfer token from Uniswap",
+      "cmd_input": [
+        {
+          "chain": "string",
+          "from_token": "string",
+          "to_token": "string",
+          "amount": "number"
+        }
+      ],
+      "cmd_output": [
+        {
+          "name": "fileFullPath",
+          "value_type": "string"
+        }
+      ]
+    }
+  },
+  "base_dir": "worklets/wallet_transfer/src"
+}

@@ -1,0 +1,21 @@
+{
+  "type": "worklet",
+  "name": "TokenSwap",
+  "version": "0.1.0",
+  "dependencies": [],
+  "actions": {
+    "action_wallet_connect_qrcode_from_owlto": {
+      "description": "Swap token from Owlto",
+      "cmd_input": {
+        "chain": "string",
+        "from_token": "string",
+        "to_token": "string",
+        "amount": "number"
+      },
+      "cmd_output": {
+        "fileFullPath": "string"
+      }
+    }
+  },
+  "base_dir": "worklets/token_swap/src"
+}

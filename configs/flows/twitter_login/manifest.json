@@ -1,0 +1,55 @@
+{
+    "name": "twitter_login",
+    "type": "flow",
+    "description": "twitter login by username and password",
+    "version": "0.1.0",
+    "webpage_url": "https://x.com/i/flow/login?lang=en",
+    "nodes": [
+        {
+            "name": "FlowStart",
+            "type": "worklet",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Twitter",
+            "type": "worklet",
+            "version": "0.1.0",
+            "properties": {}
+        },
+        {
+            "name": "FlowEnd",
+            "type": "worklet",
+            "version": "0.1.0"
+        }
+    ],
+    "connections": [
+        {
+            "name": "start the flow, login to twitter",
+            "src": {
+                "worklet": "FlowStart",
+                "action": "action_flow_start"
+            },
+            "dest": [
+                {
+                    "worklet": "Twitter",
+                    "action": "action_login"
+                }
+            ]
+        },
+        {
+            "name": "login to twitter",
+            "src": {
+                "worklet": "Twitter",
+                "action": "action_login"
+            },
+            "dest": [
+                {
+                    "worklet": "FlowEnd",
+                    "action": "action_flow_end"
+                }
+            ]
+        }
+    ],
+    "properties": {},
+    "parameters": []
+}

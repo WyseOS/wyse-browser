@@ -1,0 +1,11 @@
+node_modules/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+.env
+output/*.csv
+output/*.json
+dist
+bin
+.DS_Store
+.vscode

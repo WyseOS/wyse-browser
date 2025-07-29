@@ -1,0 +1,25 @@
+{
+  "name": "io_util",
+  "description": "worklet io util",
+  "version": "0.1.0",
+  "files": [
+    "dist/"
+  ],
+  "dependencies": {
+    "papaparse": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.13",
+    "@types/node": "^22.9.0",
+    "@types/papaparse": "^5.3.15",
+    "lodash": "^4.17.21",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3"
+  },
+  "scripts": {
+    "build": "tsup",
+    "cmd": "ts-node dist/cmd.js",
+    "prepublish": "pnpm build"
+  }
+}

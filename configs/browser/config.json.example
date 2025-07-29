@@ -1,0 +1,7 @@
+{
+    "browser": {
+        "headless": false,
+        "page_devtool_frontend_host": "https://webcast.wyseos.com",
+        "page_devtool_ws_host": "ws://localhost"
+    }
+}
