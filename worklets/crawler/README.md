@@ -5,18 +5,27 @@
 1. Install with pnpm, the version of Node.js should be >=20.x.x
 
 ```bash
+cd worklets/crawler
 pnpm install
 ```
 
-2. Check config.json
+2. Check config.json or cp config.json.example into config.json
 
 ```
-configs/browser/config.json
+cd configs/browser/
+check config.json
 ```
 
-3. Build it and run cmd:
+or
+```
+cd configs/browser/
+cp config.json.example config.json
+```
+
+3. Build it and run:
 
 ```bash
+cd worklets/crawler
 pnpm build
 pnpm cmd
 ```

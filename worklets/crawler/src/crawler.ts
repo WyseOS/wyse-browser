@@ -5,7 +5,7 @@ import stealth from "puppeteer-extra-plugin-stealth";
 import { FOLDER_DESTINATION } from "./constants";
 import { IWorklet } from "../../../browser/src/interfaces/iworklet";
 import { Session } from "../../../browser/src/session";
-import { start_from_category } from "./operations/fetch_toolify";
+import { start_from_category } from "./operations/fetch_toolify_category";
 
 chromium.use(stealth());
 
@@ -48,11 +48,7 @@ export class Crawler implements IWorklet {
   async fetch_from_category(): Promise<string> {
     console.log("fetch from Toolify category");
     const page = await this.session.getDefaultPage();
-    let err = await start_from_category(page);
-    if (err !== "") {
-      console.log("fetch from Toolify category error: " + err);
-      return err;
-    }
-    return "";
+    const output = await start_from_category(page);
+    return output;
   }
 }

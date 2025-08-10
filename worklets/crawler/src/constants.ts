@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
 import path from "path";
 
+export const TIMEOUT_MILLISECONDS = 5 * 1000;
+
 export const NOW = dayjs().format("DD-MM-YYYY_HH-mm-ss");
 
 export const FOLDER_DESTINATION = "./output";
