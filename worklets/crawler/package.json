@@ -1,22 +1,23 @@
 {
-  "name": "twitter",
-  "description": "twitter worklet for wyse",
+  "name": "crawler",
+  "description": "crawler with built-in browser",
   "version": "0.1.0",
   "files": [
     "dist/"
   ],
   "dependencies": {
-    "@playwright/test": "1.54.1",
+    "@playwright/test": "^1.54.1",
     "@types/minimist": "^1.2.5",
+    "axios": "^1.7.9",
     "commander": "^12.1.0",
     "dayjs": "^1.11.13",
     "lodash": "^4.17.21",
     "minimist": "^1.2.8",
     "papaparse": "^5.4.1",
-    "playwright": "1.54.1",
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "uuid": "^10.0.0",
+    "turndown": "^7.2.0",
+    "yargs": "^17.7.2",
     "znv": "^0.4.0",
     "zod": "^3.23.8"
   },
@@ -25,6 +26,7 @@
     "@types/lodash": "^4.17.13",
     "@types/node": "^22.9.0",
     "@types/papaparse": "^5.3.15",
+    "@types/yargs": "^17.0.33",
     "pkg": "^5.8.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
@@ -34,7 +36,7 @@
   "scripts": {
     "postinstall": "npx playwright install chromium",
     "build": "tsup",
-    "cmd": "ts-node dist/cmd.js",
+    "cmd": "ts-node src/cmd.ts",
     "prepublish": "pnpm build"
   }
 }

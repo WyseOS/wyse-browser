@@ -7,12 +7,6 @@ import { Twitter } from '../../worklets/twitter/src/twitter';
 import { IOUtil } from '../../worklets/io_util/src/io_util';
 import { FlowStart } from '../../worklets/flow_start/src/flow_start';
 import { FlowEnd } from '../../worklets/flow_end/src/flow_end';
-import { TokenSwap } from '../../worklets/token_swap/src/token_swap';
-import { WalletTransfer } from '../../worklets/wallet_transfer/src/wallet_transfer';
-import { WalletConnect } from '../../worklets/wallet_connect/src/wallet_connect';
-import { Coingecko } from '../../worklets/coingecko/src/coingecko';
-import { Spider } from '../../worklets/spider/src/spider';
-import { Webarena } from '../../worklets/webarena/src/webarena';
 import { IEdge, IConnection } from './interfaces/iconnection';
 import { CommonFlows } from "./constants";
 import { Session } from './session';
@@ -104,24 +98,6 @@ export class Flow implements IFlow {
                         break;
                     case 'FlowEnd':
                         workletInstance = new FlowEnd();
-                        break;
-                    case 'WalletConnect':
-                        workletInstance = new WalletConnect();
-                        break;
-                    case 'TokenSwap':
-                        workletInstance = new TokenSwap();
-                        break;
-                    case 'WalletTransfer':
-                        workletInstance = new WalletTransfer();
-                        break;
-                    case 'Coingecko':
-                        workletInstance = new Coingecko();
-                        break;
-                    case 'Spider':
-                        workletInstance = new Spider();
-                        break;
-                    case 'Webarena':
-                        workletInstance = new Webarena();
                         break;
                     default:
                         throw new Error(`Unknown worklet name: ${node.name}`);

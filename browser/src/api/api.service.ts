@@ -11,7 +11,6 @@ import { SessionContext } from '../session_context';
 import { CreateSessionDto } from './dto/api.session.dto';
 import { Logger } from '@nestjs/common';
 import { OSSUpload } from '../utils/oss';
-import { SendAlarm } from '../utils/alarm';
 import { v4 as uuidv4 } from 'uuid';
 import { BatchActionsDto } from './dto/api.action.dto';
 
@@ -41,7 +40,6 @@ export class ApiService {
                 return { sessionId: newSessionId };
             } catch (error) {
                 this.logger.error(`Failed to create session for ${context}: ${error.message}`);
-                await SendAlarm.sendTextMessage('Session Creation Failed', `${context}, failed to create session: ${error.message}`);
                 return {
                     sessionId: '',
                     error: responseInternalError({
@@ -54,7 +52,6 @@ export class ApiService {
             const session = this.runtime.getSession(session_id);
             if (!session) {
                 this.logger.error(`${context} failed, invalid session_id: ${session_id}`);
-                await SendAlarm.sendTextMessage('Session Not Found', `${context}, SessionID ${session_id} not found`);
                 return {
                     sessionId: session_id,
                     error: responseNotFound({
@@ -140,7 +137,6 @@ export class ApiService {
             });
         } catch (error) {
             this.logger.error(`Fire flow failed: instance_id: ${flow_instance_id}, action: ${action_name}, error: ${error}`);
-            await SendAlarm.sendTextMessage('Fire Flow Failed', `Fire Flow Failed, instance_id: ${flow_instance_id}, action: ${action_name}, error: ${error}`);
             return responseInternalError({
                 flow_instance_id: flow_instance_id,
                 action_name: action_name,
@@ -237,7 +233,6 @@ export class ApiService {
         } catch (error) {
             this.logger.error(`Create session failed: ${error.message}`);
             this.logger.error(`Input DTO was: ${JSON.stringify(createSessionDto, null, 2)}`);
-            await SendAlarm.sendTextMessage('Create Session Failed', `Create Session Failed, error: ${error.message}`);
             return responseInternalError({
                 session_id: '',
                 result: error.message
@@ -277,7 +272,6 @@ export class ApiService {
             });
         } catch (error) {
             this.logger.error(`Add init script failed, session: ${sessionId}, error: ${error.message}`);
-            await SendAlarm.sendTextMessage('Add Init Script Failed', `Add init script failed, session: ${sessionId}, error: ${error.message}`);
             return responseInternalError({
                 session_id: sessionId,
                 result: error.message
@@ -303,7 +297,6 @@ export class ApiService {
             return responseMessage({ session_id: sessionId, session: rj });
         } catch (error) {
             this.logger.error(`Error getting session info: ${error.message}`);
-            await SendAlarm.sendTextMessage('Get Session Failed', `Get session failed, id: ${sessionId}, error: ${error.message}`);
             return responseInternalError({
                 session_id: sessionId,
                 result: error.message
@@ -360,7 +353,6 @@ export class ApiService {
             });
         } catch (error) {
             this.logger.error(`Session release failed, id: ${sessionId}, error: ${error}`);
-            await SendAlarm.sendTextMessage('Session Release Failed', `Session Release Failed, id: ${sessionId}, error: ${error}`);
             return responseInternalError({
                 session_id: sessionId,
                 result: error,
@@ -437,7 +429,6 @@ export class ApiService {
             });
         } catch (error) {
             this.logger.error(`Create page failed, session: ${sessionId}, error: ${error.message}`);
-            await SendAlarm.sendTextMessage('Create Page Failed', `Create page failed, session: ${sessionId}, error: ${error.message}`);
             return responseInternalError({
                 session_id: sessionId,
                 result: error.message
@@ -486,7 +477,6 @@ export class ApiService {
             });
         } catch (error) {
             this.logger.error(`Switch page failed, session: ${sessionId}, page: ${pageId}, error: ${error.message}`);
-            await SendAlarm.sendTextMessage('Switch Page Failed', `Switch page failed, session: ${sessionId}, page: ${pageId}, error: ${error.message}`);
             return responseInternalError({
                 session_id: sessionId,
                 page_id: pageId,
@@ -544,10 +534,6 @@ export class ApiService {
                     const stats = await fs.promises.stat(videoPath);
                     if (stats.size === 0) {
                         this.logger.error(`Video is empty when upload: ${videoPath}`);
-                        await SendAlarm.sendTextMessage(
-                            'OSS Upload Failed',
-                            `${filename}\nError: Video is empty when upload: ${videoPath}`
-                        );
                         return responseMessage({ "result": "", "video_url": "" });
                     }
 
@@ -561,7 +547,6 @@ export class ApiService {
                     }
                 } catch (error) {
                     this.logger.error(`Error processing video: ${error.message}`);
-                    await SendAlarm.sendTextMessage('Video Processing Failed', `Video processing failed for session ${sessionId}, page ${pageId}: ${error.message}`);
                 }
             }
 
@@ -569,7 +554,6 @@ export class ApiService {
             return responseMessage({ "result": "", "video_url": ossUrl });
         } catch (error) {
             this.logger.error(`Release page failed, session: ${sessionId}, page: ${pageId}, error: ${error.message}`);
-            await SendAlarm.sendTextMessage('Release Page Failed', `Release page failed, session: ${sessionId}, page: ${pageId}, error: ${error.message}`);
             return responseInternalError({
                 session_id: sessionId,
                 page_id: pageId,
@@ -637,7 +621,6 @@ export class ApiService {
             });
         } catch (error) {
             this.logger.error(`Batch Actions Failed, session: ${session_id}, error: ${error.message}`);
-            await SendAlarm.sendTextMessage('Batch Actions Failed', `Batch Actions Failed, session: ${session_id}, error: ${error.message}, actions: ${JSON.stringify(batchActionDto.actions)}`);
 
             return responseInternalError({
                 session_id: session_id,

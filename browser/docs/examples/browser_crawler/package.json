@@ -1,0 +1,20 @@
+{
+    "name": "browser_crawler",
+    "description": "browser crawler example",
+    "version": "0.1.0",
+    "files": [
+        "dist/"
+    ],
+    "dependencies": {},
+    "devDependencies": {
+        "ts-node": "^10.9.2",
+        "ts-node-dev": "^2.0.0",
+        "tsup": "^8.3.5",
+        "typescript": "^5.6.3"
+    },
+    "scripts": {
+        "postinstall": "npx playwright install chromium",
+        "build": "tsup",
+        "prepublish": "pnpm build"
+    }
+}
