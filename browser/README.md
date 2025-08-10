@@ -79,3 +79,42 @@ The API service uses the NestJS framework, and the default port is `13100`.
 ```bash
 pnpm run start:dev
 ``` 
+
+## Action Space
+
+The `BrowserAction` module provides a comprehensive set of low-level actions that can be executed on a page within a session. These actions are the fundamental building blocks for creating complex automation flows.
+
+| Action | Description | Parameters |
+| :--- | :--- | :--- |
+| `url` | Gets the URL of the current page. | _None_ |
+| `visit` | Navigates the page to a specified URL. | `url`: The URL to visit. |
+| `history` | Navigates forward or backward in the browser history. | `num`: A positive number to go forward, a negative number to go back. |
+| `search` | Performs a Google search. | `search_key`: The text to search for. |
+| `refreshpage` | Reloads the current page. | _None_ |
+| `click` | Clicks an element or a point on the page. | `element_id` or (`x`, `y` coordinates). |
+| `clickfull` | A more comprehensive click action. | `element_id` or (`x`, `y` coordinates). Optional: `hold` (seconds), `button` ("left", "right", "middle"). |
+| `doubleclick` | Double-clicks an element or a point on the page. | `element_id` or (`x`, `y` coordinates). |
+| `text` | Enters text into an element or at the current cursor position. | `text`: The text to type. Optional: `element_id`, `press_enter` (boolean), `delete_existing_text` (boolean), or (`x`, `y` coordinates). |
+| `scrollup` | Scrolls the page up. | _None_ |
+| `scrolldown` | Scrolls the page down. | _None_ |
+| `scrollelementup` | Scrolls an element's container up. | `element_id`, `page_number`: Number of pages to scroll. |
+| `scrollelementdown` | Scrolls an element's container down. | `element_id`, `page_number`: Number of pages to scroll. |
+| `scrollto` | Scrolls to make an element visible. | `element_id`: The ID of the element to scroll to. |
+| `wait` | Pauses execution for a specified duration. | `time`: The number of seconds to wait. |
+| `keypress` | Simulates key presses. | `keys`: A string or array of strings of keys to press (e.g., 'Enter', 'Control+A'). |
+| `hover` | Hovers over an element or a point on the page. | `element_id` or (`x`, `y` coordinates). |
+| `evaluate` | Executes a JavaScript snippet in the page context. | `script`: The JavaScript code to execute. |
+| `initjs` | Injects initialization JavaScript into the page. | _None_ |
+| `waitforloadstate` | Waits for the page to reach a specific load state. | _None_ |
+| `content` | Gets the full HTML content of the page. | _None_ |
+| `createtab` | Creates a new browser tab. | Optional: `url`: The URL to open in the new tab. |
+| `switchtab` | Switches to a different tab. | `tab_index`: The index of the tab to switch to. |
+| `closetab` | Closes a browser tab. | `tab_index`: The index of the tab to close. |
+| `tabsinfo` | Retrieves information about all open tabs. | _None_ |
+| `cleanupanimations` | Removes animations from the page to stabilize tests. | _None_ |
+| `previewaction` | Highlights an element to preview an action without executing it. | `element_id`: The ID of the element to preview. |
+| `setcontent` | Sets the HTML content of the page. | `content`: The HTML content to set. |
+| `ensurepageready` | Ensures the page is fully loaded and ready for interaction. | _None_ |
+| `selectoption` | Selects an option from a dropdown or custom select component. | `element_id` or (`x`, `y` coordinates). |
+| `drag` | Performs a drag-and-drop operation. | `drag_path`: A JSON string or array of points `{x, y}` representing the drag path. |
+| `screenshot` | Takes a screenshot of the current page. | _None_ |
