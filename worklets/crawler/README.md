@@ -22,7 +22,13 @@ cd configs/browser/
 cp config.json.example config.json
 ```
 
-3. Build it and run:
+3. Install dependencies with pnpm in browser folder.
+```bash
+cd wyse-browser/browser
+pnpm install
+```
+
+4. Build it and run:
 
 ```bash
 cd worklets/crawler
