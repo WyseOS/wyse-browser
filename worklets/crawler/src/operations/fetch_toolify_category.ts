@@ -328,14 +328,17 @@ export const start_from_category = async (page: Page): Promise<string> => {
     console.info(`二级分类总数: ${results.length}`);
 
     // 2. 仅处理第一个分类（保持您的原始逻辑）
-    const [firstCategory] = results ?? [];
-    if (firstCategory) {
-      console.info("首个分类:", firstCategory);
+    // const [category] = results ?? [];
+    for (const category of results) {
+//     console.info(`处理分类: ${category.parentName} - ${category.name} (${category.url})`);   
+
+    // if (category) {
+    //   console.info("分类:", category);
     //   await fetch_items_in_category(page, firstCategory.parentName, firstCategory.name, firstCategory.url, firstCategory.count);
       
       // 3. 整合 scrapeAll 逻辑
-      const tools = await scrapeCategoryTools(page, firstCategory.url);
-      return JSON.stringify({ category: firstCategory, tools }, null, 2);
+      const tools = await scrapeCategoryTools(page, category.url);
+      return JSON.stringify({ category: category, tools }, null, 2);
     }
 
     return JSON.stringify({ error: "未找到有效分类" }, null, 2);
@@ -348,8 +351,6 @@ export const start_from_category = async (page: Page): Promise<string> => {
 async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]> {
   const tools: ToolCard[] = [];
   let currentPage = 1;
-//   let url = page.url();
-  console.log("url: ", url);
   
   // 确保初始页面加载完成
     await page.goto(url, { waitUntil: "domcontentloaded" });
@@ -360,12 +361,9 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]>
     
     const { cards, logoMap } = await page.evaluate(() => {
       const toText = (el: Element | null): string => (el?.textContent || '').replace(/\s+/g, ' ').trim();
-      console.log("to text: ", toText);
       const containers = Array.from(document.querySelectorAll('.tools'));
       const cards: { toolUrl: string; title: string; description: string; websiteUrl: string; imgSrc: string }[] = [];
       
-      console.log("container len: ", containers.length);
-
       containers.forEach(c => {
             const toolCards = Array.from(c.querySelectorAll('.tool-item .tool-card'));
         toolCards.forEach(card => {
