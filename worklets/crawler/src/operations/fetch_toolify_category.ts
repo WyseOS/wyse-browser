@@ -327,21 +327,13 @@ export const start_from_category = async (page: Page): Promise<string> => {
 
     console.info(`二级分类总数: ${results.length}`);
 
-    // 2. 仅处理第一个分类（保持您的原始逻辑）
-    // const [category] = results ?? [];
+    let allCategorys = [];
     for (const category of results) {
-//     console.info(`处理分类: ${category.parentName} - ${category.name} (${category.url})`);   
-
-    // if (category) {
-    //   console.info("分类:", category);
-    //   await fetch_items_in_category(page, firstCategory.parentName, firstCategory.name, firstCategory.url, firstCategory.count);
-      
-      // 3. 整合 scrapeAll 逻辑
       const tools = await scrapeCategoryTools(page, category.url);
-      return JSON.stringify({ category: category, tools }, null, 2);
+      allCategorys.push({ category, tools });    
     }
 
-    return JSON.stringify({ error: "未找到有效分类" }, null, 2);
+      return JSON.stringify(allCategorys, null, 2);
   } catch (error) {
     return JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2);
   }
@@ -353,8 +345,9 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]>
   let currentPage = 1;
   
   // 确保初始页面加载完成
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector('.tools .tool-item', { timeout: 10000 });
+  console.log("抓取页面 url = ", url);
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('.tools .tool-item', { timeout: 10000 });
 
   while (true) {
     console.log(`抓取第 ${currentPage} 页...`);
@@ -376,7 +369,7 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]>
           const img = card.querySelector('.logo-img-wrapper img') as HTMLImageElement | null;
           const imgSrc = img?.getAttribute('src') || '';
 
-          console.log(`>>> tool: ${toolUrl}, logo: ${imgSrc}, title: ${title}, description: ${description}, website: ${websiteUrl}`);
+        //   console.log(`>>> tool: ${toolUrl}, logo: ${imgSrc}, title: ${title}, description: ${description}, website: ${websiteUrl}`);
 
           cards.push({ toolUrl, title, description, websiteUrl, imgSrc });
         });
@@ -427,6 +420,16 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]>
         });
         
         console.log(`tool: ${c.toolUrl}, logo: ${logoUrl}, title: ${c.title}, description: ${c.description}, website: ${cleanedWebsite}`);
+
+        try {
+            const { err: dErr } = await fetch_item_detail(page, c.title, c.toolUrl);
+            if (dErr) {
+                console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
+            }
+        } catch (e) {
+            console.warn(`[detail] exception for ${c.toolUrl}:`, e);
+        }
+
       } catch (e) {
         console.error('工具卡片解析失败:', e);
       }
@@ -520,10 +523,10 @@ const fetch_items_in_category = async (page: Page, parentName: string, name: str
             items.push({ toolUrl: c.toolUrl, logoUrl, title: c.title, description: c.description, websiteUrl: cleanedWebsite });
             console.log(`tool: ${c.toolUrl}, logo: ${logoUrl}, title: ${c.title}, description: ${c.description}, website: ${cleanedWebsite}, parent: ${parentName}, name: ${name}, url: ${url}, total: ${count}`);
             try {
-                // const { err: dErr } = await fetch_item_detail(page, c.title || name, c.toolUrl);
-                // if (dErr) {
-                //     console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
-                // }
+                const { err: dErr } = await fetch_item_detail(page, c.title || name, c.toolUrl);
+                if (dErr) {
+                    console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
+                }
             } catch (e) {
                 console.warn(`[detail] exception for ${c.toolUrl}:`, e);
             }
