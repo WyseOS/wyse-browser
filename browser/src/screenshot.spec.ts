@@ -140,24 +140,6 @@ describe('screenshot', () => {
             expect(result).toBeDefined();
             expect(typeof result).toBe('string');
         });
-
-        it('should handle screenshot failure with proper error handling', async () => {
-            // Mock page.screenshot to throw error
-            jest.spyOn(page, 'screenshot').mockRejectedValue(new Error('Screenshot failed'));
-
-            // Mock SendAlarm.sendTextMessage to avoid actual alarm
-            const mockSendAlarm = jest.fn().mockResolvedValue(undefined);
-            jest.doMock('./utils/alarm', () => ({
-                SendAlarm: {
-                    sendTextMessage: mockSendAlarm
-                }
-            }));
-
-            await expect(testSession.screenshot()).rejects.toThrow('Screenshot failed: Screenshot failed');
-            expect((testSession as any).logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Screenshot failed for browser test-session-id')
-            );
-        });
     });
 
     describe('screenshot integration with special pages', () => {

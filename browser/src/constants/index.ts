@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs';
-import { SendAlarm } from '../utils/alarm';
 import { BrowserFingerprintWithHeaders } from 'fingerprint-generator';
 
 export enum CommonFlows {
@@ -112,7 +111,6 @@ export function GetInitJS(): string {
         return fs.readFileSync(sourcePath, 'utf8');
     }
 
-    SendAlarm.sendTextMessage('Error loading page_script.js', 'page_script.js not found in either ' + scriptPath + ' or ' + sourcePath);
     throw new Error(`page_script.js not found in either ${scriptPath} or ${sourcePath}`);
 }
 

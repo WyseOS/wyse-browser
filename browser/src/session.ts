@@ -6,7 +6,6 @@ import { OSSUpload } from './utils/oss';
 import { GetDateYYYYMMDD } from './constants';
 import { Logger } from '@nestjs/common';
 import path from 'path';
-import { SendAlarm } from './utils/alarm';
 import { getChromeExecutablePath } from "./utils/browser";
 import { FingerprintInjector } from "fingerprint-injector";
 import { BrowserFingerprintWithHeaders, FingerprintGenerator } from "fingerprint-generator";
@@ -309,7 +308,6 @@ export class Session {
               await pages[i].close();
             } catch (error) {
               this.logger.warn(`Failed to close page ${i}: ${error.message}`);
-              await SendAlarm.sendTextMessage('Failed to close page', `Failed to close page ${i}: ${error.message}`);
             }
           }
         }
@@ -345,7 +343,6 @@ export class Session {
     }
     catch (error) {
       this.logger.error(`Failed to finish async setup, error: ${error.message}, browser id: ${this.id}`);
-      await SendAlarm.sendTextMessage('Session initialization failed', `SessionID ${this.id} initialization failed, error: ${error.message}`);
       throw error;
     }
   }
@@ -404,7 +401,6 @@ export class Session {
       this.isInitialized = false;
     } catch (error) {
       this.logger.error(`Error during failed initialization cleanup: ${error.message}`);
-      await SendAlarm.sendTextMessage('Session initialization failed', `SessionID ${this.id} initialization failed, error: ${error.message}`);
     }
   }
 
@@ -486,10 +482,6 @@ export class Session {
       return buffer.toString('base64');
     } catch (error) {
       this.logger.error(`Screenshot failed for browser ${this.id}, error: ${error.message}`);
-      await SendAlarm.sendTextMessage(
-        'Screenshot failed',
-        `Browser: ${this.id}, URL: ${currentUrl}, Error: ${error.message}`
-      );
       throw new Error(`Screenshot failed: ${error.message}`);
     }
   }
@@ -575,6 +567,10 @@ export class Session {
       await this.asyncInitPromise;
     }
 
+    if (!this.wsPort || this.wsPort <= 0) {
+      return new SessionPageDebugerUrl('', '', '', '');
+    }
+
     try {
       const response = await axios.get(`http://localhost:${this.wsPort}/json/list`, {
         timeout: 5000
@@ -605,8 +601,8 @@ export class Session {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to parse debugger url: ${error.message}`);
-      SendAlarm.sendTextMessage("parse debugger url failed", error.message);
+      const msg = (error && (error as any).message) ? (error as any).message : String(error);
+      this.logger.warn(`Failed to parse debugger url (wsPort=${this.wsPort}): ${msg}`);
     }
 
     return new SessionPageDebugerUrl('', '', '', '');
@@ -701,14 +697,12 @@ export class Session {
           let stats = await fs.promises.stat(videoPath);
           if (stats.size === 0) {
             this.logger.error(`Video is empty when upload: ${videoPath}`);
-            await SendAlarm.sendTextMessage('OSS Upload Failed', `${filename}\nError: Video is empty when upload: ${videoPath}`);
             continue;
           }
 
           browserPages[i].video_url = await OSSUpload.upload(filename, videoPath);
         } catch (error) {
           this.logger.warn(`Error processing video file ${videoPath}: ${error.message}`);
-          await SendAlarm.sendTextMessage('OSS Upload Failed', `OSS Upload Failed, error: ${error.message}`);
         }
       }
     }
@@ -721,7 +715,6 @@ export class Session {
         }
       } catch (error) {
         this.logger.warn(`Error removing user data directory: ${error.message}`);
-        await SendAlarm.sendTextMessage('Error removing user data directory', `Error removing user data directory: ${error.message}`);
       }
     }
 

@@ -1,0 +1,20 @@
+{
+    "type": "worklet",
+    "name": "Crawler",
+    "version": "0.1.0",
+    "dependencies": [],
+    "actions": [
+        {
+            "name": "fetch_from_category",
+            "description": "fetch Toolify category",
+            "cmd_input": [],
+            "cmd_output": [
+                {
+                    "name": "error",
+                    "value_type": "string"
+                }
+            ]
+        }
+    ],
+    "base_dir": "worklets/crawler/src"
+}

@@ -72,7 +72,6 @@ export class SessionContext {
             }
 
             if (Array.isArray(json.session_context.origins)) {
-                this.logger.debug(`Processing origins: ${JSON.stringify(json.session_context.origins, null, 2)}`);
                 this.origins = json.session_context.origins
                     .filter(origin =>
                         origin &&
