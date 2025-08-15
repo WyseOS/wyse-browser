@@ -24,7 +24,7 @@ async function main() {
 
     try {
         const result = await crawler.execute("toolify");
-        console.log(result);
+        console.log("Result>>>: ", result);
     } catch (err) {
         console.error("Error running crawler:", err);
     } finally {

@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { Page } from "@playwright/test";
+import { Page, Locator } from "@playwright/test";
 import { cleanWebsiteUrl, formatCompactNumber, stripImageQueryParams } from './utils';
 //import { z } from "zod";
 import { TIMEOUT_MILLISECONDS } from "../constants";
@@ -283,6 +283,189 @@ const fetch_item_detail = async (page: Page, name: string, url: string): Promise
     }
 };
 
+interface ToolCard {
+  toolUrl: string;
+  title: string;
+  description: string;
+  websiteUrl: string;
+  imgSrc: string;
+}
+
+export const start_from_category = async (page: Page): Promise<string> => {
+  try {
+    // 1. 获取所有二级分类
+    const url = "https://www.toolify.ai/category";
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".category-item");
+    await page.waitForTimeout(TIMEOUT_MILLISECONDS);
+    await scroll_preload(page); // 保持您的原有滚动逻辑
+
+    const itemElements = await page.locator(".category-item").all();
+    const results: SecondCategoryItem[] = [];
+    
+    for (const itemEl of itemElements) {
+      try {
+        /// for test
+        if (results.length > 0) {
+            break;
+        }
+
+        const spanEl = itemEl.locator("span").first();
+        if (!(await spanEl.count())) continue;
+        
+        const text = await spanEl.textContent() || "";
+        const cleanText = text.replace(/\s+/g, " ").trim();
+        if (!cleanText) continue;
+
+        const { err, items } = await fetch_second_category(page, cleanText);
+        if (err) console.warn(`二级分类抓取失败 '${cleanText}':`, err);
+        results.push(...items);
+      } catch (e) {
+        console.error(`元素处理错误 '${url}':`, e);
+      }
+    }
+
+    console.info(`二级分类总数: ${results.length}`);
+
+    let allCategorys = [];
+    for (const category of results) {
+      const tools = await scrapeCategoryTools(page, category.url);
+      allCategorys.push({ category, tools });    
+    }
+
+      return JSON.stringify(allCategorys, null, 2);
+  } catch (error) {
+    return JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2);
+  }
+};
+
+// Playwright 实现的工具抓取
+async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]> {
+  const tools: ToolCard[] = [];
+  let currentPage = 1;
+  
+  // 确保初始页面加载完成
+  console.log("抓取页面 url = ", url);
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('.tools .tool-item', { timeout: 10000 });
+
+  while (true) {
+    console.log(`抓取第 ${currentPage} 页...`);
+    
+    const { cards, logoMap } = await page.evaluate(() => {
+      const toText = (el: Element | null): string => (el?.textContent || '').replace(/\s+/g, ' ').trim();
+      const containers = Array.from(document.querySelectorAll('.tools'));
+      const cards: { toolUrl: string; title: string; description: string; websiteUrl: string; imgSrc: string }[] = [];
+      
+      containers.forEach(c => {
+            const toolCards = Array.from(c.querySelectorAll('.tool-item .tool-card'));
+        toolCards.forEach(card => {
+          const titleAnchor = card.querySelector('.card-text-content a[href^="/tool/"]') as HTMLAnchorElement | null;
+          const toolUrl = titleAnchor?.getAttribute('href') || '';
+          const title = toText(card.querySelector('.card-text-content h2'));
+          const description = toText(card.querySelector('.card-text-content p'));
+          const websiteAnchor = Array.from(card.querySelectorAll('a')).find(a => a.querySelector('.visit-btn')) as HTMLAnchorElement | null;
+          const websiteUrl = websiteAnchor?.getAttribute('href') || '';
+          const img = card.querySelector('.logo-img-wrapper img') as HTMLImageElement | null;
+          const imgSrc = img?.getAttribute('src') || '';
+
+        //   console.log(`>>> tool: ${toolUrl}, logo: ${imgSrc}, title: ${title}, description: ${description}, website: ${websiteUrl}`);
+
+          cards.push({ toolUrl, title, description, websiteUrl, imgSrc });
+        });
+      });
+      
+      const logoMap: Record<string, string> = {};
+      const walk = (obj: unknown): void => {
+        if (!obj || typeof obj !== 'object') return;
+        const anyObj = obj as Record<string, unknown>;
+        const handle = typeof anyObj['handle'] === 'string' ? (anyObj['handle'] as string) : '';
+        const websiteLogo = typeof anyObj['website_logo'] === 'string' ? (anyObj['website_logo'] as string) : '';
+        if (handle && websiteLogo) logoMap[handle] = websiteLogo;
+        for (const key in anyObj) {
+          if (Object.prototype.hasOwnProperty.call(anyObj, key)) {
+            try { walk(anyObj[key]); } catch { }
+          }
+        }
+      };
+      
+      try {
+        // @ts-ignore
+        walk((window as any).__NUXT__);
+      } catch { }
+      return { cards, logoMap };
+    });
+
+    const toAbsolute = (maybePath: string): string => {
+      if (!maybePath) return '';
+      if (/^https?:\/\//i.test(maybePath)) return maybePath;
+      return new URL(maybePath, 'https://www.toolify.ai').toString();
+    };
+
+    // 处理抓取到的卡片数据
+    for (const c of cards) {
+      try {
+        const match = c.toolUrl.match(/\/tool\/([^\/?#]+)/);
+        const handle = match?.[1] || '';
+        const logoFromNuxt = handle ? logoMap[handle] : '';
+        const logoUrl = logoFromNuxt || toAbsolute(c.imgSrc);
+        const cleanedWebsite = cleanWebsiteUrl(c.websiteUrl);
+        
+        tools.push({
+          toolUrl: c.toolUrl,
+          imgSrc: logoUrl,
+          title: c.title,
+          description: c.description,
+          websiteUrl: cleanedWebsite
+        });
+        
+        console.log(`tool: ${c.toolUrl}, logo: ${logoUrl}, title: ${c.title}, description: ${c.description}, website: ${cleanedWebsite}`);
+
+        try {
+            const { err: dErr } = await fetch_item_detail(page, c.title, c.toolUrl);
+            if (dErr) {
+                console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
+            }
+        } catch (e) {
+            console.warn(`[detail] exception for ${c.toolUrl}:`, e);
+        }
+
+      } catch (e) {
+        console.error('工具卡片解析失败:', e);
+      }
+    }
+
+    // 改进的翻页逻辑
+    const nextPageLink = await page.$(`.tools-pagination a[href*="page=${currentPage + 1}"]:not([disabled])`);
+    
+    if (nextPageLink) {
+      currentPage++;
+      await Promise.all([
+        nextPageLink.click(),
+        page.waitForLoadState('networkidle'),
+        page.waitForSelector('.tool-item', { timeout: 10000 })
+      ]);
+      await page.waitForTimeout(1000); // 额外等待1秒确保稳定
+    } else {
+      // 检查是否有下一页箭头按钮（且未被禁用）
+      const nextArrowBtn = await page.$('.tools-pagination a:has(> svg.svg-icon.text-sm):not([disabled])');
+      if (nextArrowBtn) {
+        currentPage++;
+        await Promise.all([
+          nextArrowBtn.click(),
+          page.waitForLoadState('networkidle'),
+          page.waitForSelector('.tool-item', { timeout: 10000 })
+        ]);
+        await page.waitForTimeout(1000);
+      } else {
+        break; // 没有下一页了
+      }
+    }
+  }
+
+  return tools;
+}
+
 const fetch_items_in_category = async (page: Page, parentName: string, name: string, url: string, count: number): Promise<{ err: string; items: ToolItem[] }> => {
     let err = "";
     const items: ToolItem[] = [];
@@ -418,42 +601,46 @@ const scroll_preload = async (page: Page): Promise<void> => {
     await page.evaluate(() => window.scrollTo(0, 0));
 };
 
-export const start_from_category = async (page: Page): Promise<string> => {
-    try {
-        const url = "https://www.toolify.ai/category";
-        await page.goto(url, { waitUntil: "domcontentloaded" });
-        await page.waitForSelector(".category-item");
-        await page.waitForTimeout(TIMEOUT_MILLISECONDS);
-        await scroll_preload(page);
-        const itemElements = await page.$$(".category-item");
-        const results: SecondCategoryItem[] = [];
-        for (const itemEl of itemElements) {
-            try {
-                const spanEl = await itemEl.$("span");
-                if (!spanEl) {
-                    continue;
-                }
-                const text = await spanEl.evaluate((el: Element) => (el.textContent || "").replace(/\s+/g, " ").trim());
-                if (!text) continue;
-                const { err, items } = await fetch_second_category(page, text);
-                if (err) {
-                    console.warn(`Fetch second category failed for '${text}':`, err);
-                }
-                results.push(...items);
-            } catch (e) {
-                console.error(`Fetch item error for '${url}':`, e);
-                continue;
-            }
-        }
-        console.info(`second-level total: ${results.length}`);
-        for (const r of results) {
-            console.info(`parent: ${r.parentName}, url: ${r.url}, name: ${r.name}, count: ${r.count}`);
-        }
-        for (const r of results) {
-            await fetch_items_in_category(page, r.parentName, r.name, r.url, r.count);
-        }
-        return JSON.stringify("{}", null, 2);
-    } catch (error) {
-        return error as unknown as string;
-    }
-};
+// export const start_from_category = async (page: Page): Promise<string> => {
+//     try {
+//         const url = "https://www.toolify.ai/category";
+//         await page.goto(url, { waitUntil: "domcontentloaded" });
+//         await page.waitForSelector(".category-item");
+//         await page.waitForTimeout(TIMEOUT_MILLISECONDS);
+//         await scroll_preload(page);
+
+//         const itemElements = await page.$$(".category-item");
+//         const results: SecondCategoryItem[] = [];
+//         for (const itemEl of itemElements) {
+//             try {
+//                 const spanEl = await itemEl.$("span");
+//                 if (!spanEl) {
+//                     continue;
+//                 }
+//                 const text = await spanEl.evaluate((el: Element) => (el.textContent || "").replace(/\s+/g, " ").trim());
+//                 if (!text) continue;
+//                 const { err, items } = await fetch_second_category(page, text);
+//                 if (err) {
+//                     console.warn(`Fetch second category failed for '${text}':`, err);
+//                 }
+//                 results.push(...items);
+//             } catch (e) {
+//                 console.error(`Fetch item error for '${url}':`, e);
+//                 continue;
+//             }
+//         }
+//         console.info(`second-level total: ${results.length}`);
+
+//         const [r] = results ?? []
+//         if (r) {
+//         // for (const r of results) {
+//             // console.info(`parent: ${r.parentName}, url: ${r.url}, name: ${r.name}, count: ${r.count}`);
+//             console.info("r = ", r);
+
+//             await fetch_items_in_category(page, r.parentName, r.name, r.url, r.count);
+//         }
+//         return JSON.stringify("{}", null, 2);
+//     } catch (error) {
+//         return error as unknown as string;
+//     }
+// };
