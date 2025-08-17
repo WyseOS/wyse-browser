@@ -14,38 +14,41 @@ graph TD
         M[LLM]
         A[AI Agents]
     end
-    M <--> A
-    A --> B(Wyse Browser)
-    M -.-> B
-    B --> C{Workflow1}
-    
-    subgraph Wyse Browser
-        B
-        C
-        AS[Action Space]
-    end
-    B --> AS
 
-    AL[visit<br/>history<br/>search<br/>refresh_page<br/>click<br/>click_full<br/>double_click<br/>text<br/>scroll_up<br/>scroll_down<br/>scroll_element_up<br/>scroll_element_down<br/>scroll_to<br/>wait<br/>key_press<br/>hover<br/>evaluate<br/>init_js<br/>content<br/>create_tab<br/>switch_tab<br/>close_tab<br/>tabs_info<br/>set_content<br/>select_option<br/>drag<br/>screenshot]
+    subgraph Wyse Browser
+        B(RunTime)
+        C{Workflow}
+        AS[Browser Actions]
+        APIS[API Service]
+    end
+
+    subgraph "Playwright"
+        BIs[Chrome Instances]
+    end
+  
+    A <--> B
+    B <--> APIS
+    B --> C
+    B --> AS
+    
+    B -- Manages --> BIs
+
+
+    APIS -- Exposes --> APIList[/api/session/<br>/api/flow/<br>/api/browser/]
+
+    AL[visit, history, search, refresh_page<br/>click, click_full, double_click, text<br/>scroll_up, scroll_down, scroll_element_up, scroll_element_down<br/>scroll_to, wait, key_press, hover<br/>evaluate, init_js, content, create_tab<br/>switch_tab, close_tab, tabs_info, set_content<br/>select_option, drag, screenshot]
     AS --> AL
 
-    subgraph Website
-        direction RL
-        W2[Website2]
-    end
-    AL --> W2
+    AL --> W2[Website2]
 
     C --> D[Worklet1]
     C --> E[Worklet2]
     C --> F[Worklet3]
     C --> G[Worklet4]
     
-    subgraph Local Resource
+    subgraph External Resource
         D
         E
-    end
-
-    subgraph HTTP Resource
         F
         G
     end
@@ -60,6 +63,8 @@ graph TD
     style B fill:#E0F2FF,stroke:#3399FF,stroke-width:2px;
     style C fill:#E0F2FF,stroke:#3399FF,stroke-width:1px,rx:5px,ry:5px;
     style AS fill:#E0F2FF,stroke:#3399FF,stroke-width:1px,rx:5px,ry:5px;
+    style APIS fill:#E0F2FF,stroke:#3399FF,stroke-width:2px;
+    style APIList fill:#FFF,stroke:#333,stroke-width:1px,rx:5px,ry:5px;
     style D fill:#FFD9D9,stroke:#FF6666,stroke-width:1px,rx:5px,ry:5px;
     style E fill:#FFD9D9,stroke:#FF6666,stroke-width:1px,rx:5px,ry:5px;
     style F fill:#E6E6FA,stroke:#9370DB,stroke-width:1px,rx:5px,ry:5px;
@@ -70,6 +75,7 @@ graph TD
     style L fill:#E6E6FA,stroke:#9370DB,stroke-width:1px,rx:5px,ry:5px;
     style W2 fill:#E6E6FA,stroke:#9370DB,stroke-width:1px,rx:5px,ry:5px;
     style AL fill:#FFF,stroke:#333,stroke-width:1px,rx:5px,ry:5px;
+    style BIs fill:#D5F5E3,stroke:#2ECC71,stroke-width:1px,rx:5px,ry:5px;
 ```
 
 ## Browser Action Space
@@ -110,6 +116,67 @@ The `BrowserAction` module provides a comprehensive set of low-level actions tha
 | `selectoption` | Selects an option from a dropdown or custom select component. | `element_id` or (`x`, `y` coordinates). |
 | `drag` | Performs a drag-and-drop operation. | `drag_path`: A JSON string or array of points `{x, y}` representing the drag path. |
 | `screenshot` | Takes a screenshot of the current page. | _None_ |
+
+## API Endpoints
+
+The Wyse Browser exposes a rich set of API endpoints for programmatic control over browser automation tasks.
+
+### Base URL
+
+```
+http://127.0.0.1:13100
+```
+
+### Health Check
+
+| Method | Endpoint | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Checks if the API server is running. | _None_ |
+
+### Metadata Management
+
+| Method | Endpoint | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/metadata/flow/:name` | Retrieves the manifest for a specific flow. | **Path**: `name` (string, required) |
+| `GET` | `/api/metadata/worklet/:name` | Retrieves the manifest for a specific worklet. | **Path**: `name` (string, required) |
+| `GET` | `/api/metadata/list/:type` | Lists all available metadata for a given type (`flow` or `worklet`). | **Path**: `type` (string, required) - `flow` or `worklet` |
+| `POST` | `/api/metadata/save` | Saves or updates a flow manifest. | **Body**: `UpdateMetadataDto`<br>- `metadata_type` (string, required)<br>- `name` (string, required)<br>- `data` (object, required) |
+
+### Session Management
+
+| Method | Endpoint | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/session/create` | Creates a new browser session. | **Body**: `CreateSessionDto`<br>- `session_context` (object, optional)<br>- `session_id` (string, optional) |
+| `POST` | `/api/session/:sessionId/add_init_script` | Adds an initialization script to the session. | **Path**: `sessionId` (string, required)<br>**Body**: `AddInitScriptDto`<br>- `script` (string, required) |
+| `GET` | `/api/session/:sessionId` | Retrieves details for a specific session. | **Path**: `sessionId` (string, required) |
+| `GET` | `/api/session/:sessionId/context` | Gets the context (cookies, local storage) of a session. | **Path**: `sessionId` (string, required) |
+| `GET` | `/api/session/:sessionId/release` | Closes and cleans up a session. | **Path**: `sessionId` (string, required) |
+| `GET` | `/api/sessions/list` | Lists all active sessions. | _None_ |
+| `GET` | `/api/session/:sessionId/screenshot` | Takes a screenshot of the current page in a session. | **Path**: `sessionId` (string, required) |
+
+### Browser Actions
+
+| Method | Endpoint | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/browser/action` | Executes a single browser action (e.g., `click`, `text`). | **Body**: `BrowserActionDto`<br>- `session_id` (string, required)<br>- `page_id` (number, optional, default: 0)<br>- `action_name` (string, required)<br>- `data` (object, required) |
+| `POST` | `/api/browser/batch_actions` | Executes a batch of browser actions sequentially. | **Body**: `BatchActionsDto`<br>- `session_id` (string, required)<br>- `page_id` (number, optional, default: 0)<br>- `actions` (array, required):<br>  - `action_name` (string, required)<br>  - `data` (object, required) |
+
+### Page Management
+
+| Method | Endpoint | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/session/:sessionId/page/create` | Creates a new page (tab) in a session. | **Path**: `sessionId` (string, required) |
+| `GET` | `/api/session/:sessionId/page/:pageId/switch` | Switches the active page in a session. | **Path**:<br>- `sessionId` (string, required)<br>- `pageId` (number, required) |
+| `GET` | `/api/session/:sessionId/page/:pageId/release` | Closes a specific page in a session. | **Path**:<br>- `sessionId` (string, required)<br>- `pageId` (number, required) |
+
+### Flow Management
+
+| Method | Endpoint | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/flow/create` | Creates a new flow instance from a predefined manifest. | **Body**: `CreateFlowDto`<br>- `flow_name` (string, required)<br>- `session_id` (string, optional)<br>- `is_save_video` (boolean, optional)<br>- `extension_names` (string[], optional) |
+| `POST` | `/api/flow/deploy` | Deploys a new flow using an inline JSON definition. | **Body**: `DeployFlowDto`<br>- `flow` (object, required)<br>- `session_id` (string, optional)<br>- `is_save_video` (boolean, optional)<br>- `extension_names` (string[], optional) |
+| `POST` | `/api/flow/fire` | Executes an action within a running flow instance. | **Body**: `FireFlowDto`<br>- `flow_instance_id` (string, required)<br>- `action_name` (string, optional, default: `action_flow_start`)<br>- `data` (object, required) |
+| `GET` | `/api/flow/list` | Lists all active flow instances. | _None_ |
 
 
 ## Work Flow
