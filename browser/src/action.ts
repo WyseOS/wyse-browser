@@ -2,7 +2,6 @@ import { Session } from './session';
 import { BrowserActionParameters } from "./interfaces/iaction";
 import { BrowserActionType, DefaultWidth, DefaultHeight, DefaultTimeout, DefaultElementTimeout, GetInitJS } from "./constants/index";
 import { Logger } from '@nestjs/common';
-import { SendAlarm } from './utils/alarm';
 import { AnimationUtils } from './utils/animation';
 import { ActionErrorHandler } from './utils/error-handler';
 import { ParameterValidator } from './utils/parameter-validator';
@@ -29,7 +28,6 @@ export class BrowserAction {
         if (page_id < 0 || page_id >= pages.length) {
             const errorMessage = `Start Action ${action_name}, Page ID ${page_id} is out of range. Available page range: 0-${pages.length - 1}. Session ID: ${session.id}`;
             this.logger.error(errorMessage);
-            await SendAlarm.sendTextMessage('BrowserAction Error, Invalid Page ID', errorMessage);
             throw new Error(errorMessage);
         }
 
@@ -153,7 +151,6 @@ export class BrowserAction {
             const actionError = ActionErrorHandler.createActionError(action_name, session.id, error, params);
             this.logger.error(actionError.message);
             const url = await page.url();
-            await SendAlarm.sendTextMessage(`Browser Action Failed: ${action_name}`, `URL: ${url}, Error: ${actionError.message}`);
             throw actionError;
         }
     }
@@ -1079,8 +1076,6 @@ export class BrowserAction {
                 // Ignore
             }
 
-            await SendAlarm.sendTextMessage('Screenshot action failed', `Page URL: ${currentUrl}, Error: ${error.message}`
-            );
             throw new Error(`Screenshot failed: ${error.message}`);
         }
     }

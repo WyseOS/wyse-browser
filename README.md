@@ -1,8 +1,18 @@
 # Wyse Browser
 
-## Overview
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/wyse-work/wyse-browser)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-Wyse Browser is a powerful, multi-process runtime engine designed for executing automated flows within a browser environment.
+Wyse Browser is a powerful, multi-process runtime engine designed for executing automated flows within a browser environment. It provides a robust platform for creating, managing, and executing complex automation workflows through a comprehensive REST API.
+
+## Key Features
+
+-   **Powerful Automation Core**: Built on NestJS and Playwright for reliable and efficient browser automation.
+-   **Modular & Extensible**: Use Worklets as reusable components to build complex Workflows.
+-   **Full API Control**: A comprehensive REST API for programmatic control over sessions, pages, flows, and actions.
+-   **Parallel Execution**: Manages multiple sandboxed Chrome instances to run tasks in parallel.
+-   **Rich Action Space**: A wide range of built-in browser actions, from navigation and clicking to executing custom JavaScript.
 
 ## Architecture
 
@@ -15,37 +25,40 @@ graph TD
         A[AI Agents]
     end
     M <--> A
-    A --> B(Wyse Browser)
-    M -.-> B
-    B --> C{Workflow1}
     
-    subgraph Wyse Browser
-        B
-        C
-        AS[Action Space]
-    end
-    B --> AS
+    APIS -- Exposes --> APIList[/api/session/<br>/api/flow/<br>/api/browser/]
 
-    AL[visit<br/>history<br/>search<br/>refresh_page<br/>click<br/>click_full<br/>double_click<br/>text<br/>scroll_up<br/>scroll_down<br/>scroll_element_up<br/>scroll_element_down<br/>scroll_to<br/>wait<br/>key_press<br/>hover<br/>evaluate<br/>init_js<br/>content<br/>create_tab<br/>switch_tab<br/>close_tab<br/>tabs_info<br/>set_content<br/>select_option<br/>drag<br/>screenshot]
+    subgraph Wyse Browser
+        B(RunTime)
+        C{Workflow}
+        AS[Browser Actions]
+        APIS[API Service]
+    end
+
+    subgraph "(Playwright)"
+        BIs[Chrome Instances]
+    end
+  
+    A <--> B
+    B <--> APIS
+    B --> C
+    B --> AS
+    
+    B -- Manages --> BIs
+
+    AL[visit, history, search, refresh_page<br/>click, click_full, double_click, text<br/>scroll_up, scroll_down, scroll_element_up, scroll_element_down<br/>scroll_to, wait, key_press, hover<br/>evaluate, init_js, content, create_tab<br/>switch_tab, close_tab, tabs_info, set_content<br/>select_option, drag, screenshot]
     AS --> AL
 
-    subgraph Website
-        direction RL
-        W2[Website2]
-    end
-    AL --> W2
+    AL --> W2[Website2]
 
     C --> D[Worklet1]
     C --> E[Worklet2]
     C --> F[Worklet3]
     C --> G[Worklet4]
     
-    subgraph Local Resource
+    subgraph External Resource
         D
         E
-    end
-
-    subgraph HTTP Resource
         F
         G
     end
@@ -60,6 +73,8 @@ graph TD
     style B fill:#E0F2FF,stroke:#3399FF,stroke-width:2px;
     style C fill:#E0F2FF,stroke:#3399FF,stroke-width:1px,rx:5px,ry:5px;
     style AS fill:#E0F2FF,stroke:#3399FF,stroke-width:1px,rx:5px,ry:5px;
+    style APIS fill:#E0F2FF,stroke:#3399FF,stroke-width:2px;
+    style APIList fill:#FFF,stroke:#333,stroke-width:1px,rx:5px,ry:5px;
     style D fill:#FFD9D9,stroke:#FF6666,stroke-width:1px,rx:5px,ry:5px;
     style E fill:#FFD9D9,stroke:#FF6666,stroke-width:1px,rx:5px,ry:5px;
     style F fill:#E6E6FA,stroke:#9370DB,stroke-width:1px,rx:5px,ry:5px;
@@ -70,88 +85,102 @@ graph TD
     style L fill:#E6E6FA,stroke:#9370DB,stroke-width:1px,rx:5px,ry:5px;
     style W2 fill:#E6E6FA,stroke:#9370DB,stroke-width:1px,rx:5px,ry:5px;
     style AL fill:#FFF,stroke:#333,stroke-width:1px,rx:5px,ry:5px;
+    style BIs fill:#D5F5E3,stroke:#2ECC71,stroke-width:1px,rx:5px,ry:5px;
 ```
 
-## Browser Action Space
+## Getting Started
 
-The `BrowserAction` module provides a comprehensive set of low-level actions that can be executed on a page within a session. These actions are the fundamental building blocks for creating complex automation flows.
+### Prerequisites
 
-| Action | Description | Parameters |
-| :--- | :--- | :--- |
-| `url` | Gets the URL of the current page. | _None_ |
-| `visit` | Navigates the page to a specified URL. | `url`: The URL to visit. |
-| `history` | Navigates forward or backward in the browser history. | `num`: A positive number to go forward, a negative number to go back. |
-| `search` | Performs a Google search. | `search_key`: The text to search for. |
-| `refreshpage` | Reloads the current page. | _None_ |
-| `click` | Clicks an element or a point on the page. | `element_id` or (`x`, `y` coordinates). |
-| `clickfull` | A more comprehensive click action. | `element_id` or (`x`, `y` coordinates). Optional: `hold` (seconds), `button` ("left", "right", "middle"). |
-| `doubleclick` | Double-clicks an element or a point on the page. | `element_id` or (`x`, `y` coordinates). |
-| `text` | Enters text into an element or at the current cursor position. | `text`: The text to type. Optional: `element_id`, `press_enter` (boolean), `delete_existing_text` (boolean), or (`x`, `y` coordinates). |
-| `scrollup` | Scrolls the page up. | _None_ |
-| `scrolldown` | Scrolls the page down. | _None_ |
-| `scrollelementup` | Scrolls an element's container up. | `element_id`, `page_number`: Number of pages to scroll. |
-| `scrollelementdown` | Scrolls an element's container down. | `element_id`, `page_number`: Number of pages to scroll. |
-| `scrollto` | Scrolls to make an element visible. | `element_id`: The ID of the element to scroll to. |
-| `wait` | Pauses execution for a specified duration. | `time`: The number of seconds to wait. |
-| `keypress` | Simulates key presses. | `keys`: A string or array of strings of keys to press (e.g., 'Enter', 'Control+A'). |
-| `hover` | Hovers over an element or a point on the page. | `element_id` or (`x`, `y` coordinates). |
-| `evaluate` | Executes a JavaScript snippet in the page context. | `script`: The JavaScript code to execute. |
-| `initjs` | Injects initialization JavaScript into the page. | _None_ |
-| `waitforloadstate` | Waits for the page to reach a specific load state. | _None_ |
-| `content` | Gets the full HTML content of the page. | _None_ |
-| `createtab` | Creates a new browser tab. | Optional: `url`: The URL to open in the new tab. |
-| `switchtab` | Switches to a different tab. | `tab_index`: The index of the tab to switch to. |
-| `closetab` | Closes a browser tab. | `tab_index`: The index of the tab to close. |
-| `tabsinfo` | Retrieves information about all open tabs. | _None_ |
-| `cleanupanimations` | Removes animations from the page to stabilize tests. | _None_ |
-| `previewaction` | Highlights an element to preview an action without executing it. | `element_id`: The ID of the element to preview. |
-| `setcontent` | Sets the HTML content of the page. | `content`: The HTML content to set. |
-| `ensurepageready` | Ensures the page is fully loaded and ready for interaction. | _None_ |
-| `selectoption` | Selects an option from a dropdown or custom select component. | `element_id` or (`x`, `y` coordinates). |
-| `drag` | Performs a drag-and-drop operation. | `drag_path`: A JSON string or array of points `{x, y}` representing the drag path. |
-| `screenshot` | Takes a screenshot of the current page. | _None_ |
+- Node.js (v20.x or later)
+- pnpm
 
+### Installation
 
-## Work Flow
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/wyse-work/wyse-browser.git
+    cd wyse-browser
+    ```
 
-### Runtime
+2.  Navigate to the browser engine directory and install dependencies:
+    ```bash
+    cd browser
+    pnpm install
+    ```
 
-The **Runtime** provides an execution environment tailored for running flows in a multi-process mode. It features a flexible architecture for effective management and execution of both Worklets and Workflows.
+3.  Build all worklets:
+    ```bash
+    ./build_worklets.sh
+    ```
 
-It acts as the central coordinator, responsible for:
+4.  Run the API development server:
+    ```bash
+    pnpm run start:dev
+    ```
+    The API server will be running at `http://127.0.0.1:13100`.
 
--   Managing multiple workflow and worklet instances.
--   Controlling client connection permissions and lifecycles.
--   Enforcing security policies and consent requirements.
--   Tracking progress and status of executions.
+## Quick Start: Usage Example
 
-### Workflow
+Here's a quick example of how to use `curl` to create a session, navigate to a page, and take a screenshot.
 
-A **Workflow** defines a precise sequence of worklets executed in a specific order. Workflows are designed and created by AI agents and maintain isolated data connections within the Wyse Browser. Developers can establish bi-directional data communication through the Inter-Worklet Communication (IWC) protocol by arranging worklets and connections within a flow.
+1.  **Create a new session:**
+    ```bash
+    SESSION_ID=$(curl -s -X POST http://127.0.0.1:13100/api/session/create \
+    -H "Content-Type: application/json" \
+    -d '{}' | grep -o '"session_id":"[^"]*' | cut -d'"' -f4)
 
-### Worklet
+    echo "Session created with ID: $SESSION_ID"
+    ```
 
-A **Worklet** is a reusable, autonomous, and highly composable code block dedicated to performing a specific task. Worklets expose resources and tools, operating independently with focused responsibilities. They can be implemented in various programming languages and function as either local processes or remote services.
+2.  **Perform a "visit" action:**
+    ```bash
+    curl -X POST http://127.0.0.1:13100/api/browser/action \
+    -H "Content-Type: application/json" \
+    -d '{
+      "session_id": "'"$SESSION_ID"'",
+      "action_name": "visit",
+      "data": { "url": "https://www.google.com" }
+    }'
+    ```
 
+3.  **Take a screenshot:**
+    ```bash
+    curl -X GET http://127.0.0.1:13100/api/session/$SESSION_ID/screenshot
+    ```
+
+## API Reference
+
+The Wyse Browser exposes a rich set of API endpoints for programmatic control.
+
+### Base URL
+`http://127.0.0.1:13100`
+
+*For detailed information on all endpoints, parameters, and responses, please see the [API Documentation in `browser/README.md`](./browser/README.md#api-endpoints).*
+
+## Core Concepts
+
+-   **Workflow**: Defines a precise sequence of worklets executed in a specific order. Workflows are designed and created by AI agents and maintain isolated data connections within the Wyse Browser.
+-   **Worklet**: A reusable, autonomous, and highly composable code block dedicated to performing a specific task. They can be implemented in various languages and function as local processes or remote services.
+-   **Browser Actions**: The fundamental building blocks for automation. These are low-level actions that can be executed on a page, such as `click`, `visit`, or `screenshot`.
 
 ## Security and Safety
 
 Security and user safety are paramount in Wyse Browser:
 
-1.  **User Consent and Control**:
-    *   Users must explicitly consent to and fully understand all data access and operations.
-    *   Users must retain absolute control over data sharing and actions taken on their behalf.
-    *   The Wyse Browser is designed to provide clear user interfaces and logs for comprehensive review and auditing of all activities.
+1.  **User Consent and Control**: Users must explicitly consent to and fully understand all data access and operations.
+2.  **Data Privacy**: Applications must obtain explicit user consent before exposing any user data to external servers.
+3.  **Worklet Safety**: Worklets involve arbitrary code execution and must be handled with extreme caution. Hosts must obtain explicit user consent before invoking any worklet.
 
-2.  **Data Privacy**:
-    *   Applications must obtain explicit user consent before exposing any user data to external servers.
-    *   Applications are strictly prohibited from transmitting resource data elsewhere without explicit user consent.
-    *   User data is protected with appropriate access controls to ensure confidentiality and integrity.
+## Contributing
 
-3.  **Worklet Safety**:
-    *   Worklets involve arbitrary code execution and must be handled with extreme caution.
-    *   Hosts must obtain explicit user consent before invoking any worklet.
-    *   Users should have a clear understanding of each worklet's functionality before authorizing its use.
+Contributions are welcome! Please feel free to submit a pull request.
+
+1.  Fork the repository.
+2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
 ## License
 

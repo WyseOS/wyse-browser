@@ -1,6 +1,5 @@
 import { Page } from 'playwright';
 import { Logger } from '@nestjs/common';
-import { SendAlarm } from './alarm';
 
 // A utility class for handling cursor animations and visual effects in Playwright.
 export class AnimationUtils {
@@ -61,7 +60,6 @@ export class AnimationUtils {
         }
         catch (error) {
             this.logger.error(`Failed to add cursor box: ${error.message}`);
-            await SendAlarm.sendTextMessage('Failed to add cursor box', error.message);
         }
     }
 
@@ -117,7 +115,6 @@ export class AnimationUtils {
         }
         catch (error) {
             this.logger.error(`Failed to animate cursor: ${error.message}`);
-            await SendAlarm.sendTextMessage('Failed to animate cursor', error.message);
         }
         finally {
             this.last_cursor_position = { x: end_x, y: end_y };
@@ -150,7 +147,6 @@ export class AnimationUtils {
         }
         catch (error) {
             this.logger.error(`Failed to remove cursor box: ${error.message}`);
-            await SendAlarm.sendTextMessage('Failed to remove cursor box', error.message);
         }
     }
 
@@ -183,7 +179,6 @@ export class AnimationUtils {
         }
         catch (error) {
             this.logger.error(`Failed to cleanup animations: ${error.message}`);
-            await SendAlarm.sendTextMessage('Failed to cleanup animations', error.message);
         }
         finally {
             // Reset the last cursor position

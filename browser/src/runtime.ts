@@ -9,7 +9,6 @@ import path from 'path';
 import fs from 'fs';
 import { SessionContext } from './session_context';
 import { v4 as uuidv4 } from 'uuid';
-import { SendAlarm } from './utils/alarm';
 
 @Injectable()
 export class Runtime {
@@ -44,7 +43,7 @@ export class Runtime {
 
     constructor() {
         this.logger = new Logger(Runtime.name);
-        let engineConfig = JSON.parse(fs.readFileSync(path.resolve('..', "configs/engine", "config.json"), "utf8"));
+        let engineConfig = JSON.parse(fs.readFileSync(path.resolve('..', "configs/browser", "config.json"), "utf8"));
         this.headless = engineConfig.browser.headless;
         this.page_devtool_frontend_host = engineConfig.browser.page_devtool_frontend_host;
         this.page_devtool_ws_host = engineConfig.browser.page_devtool_ws_host;
@@ -80,7 +79,6 @@ export class Runtime {
         const session = this.sessions.get(sessionId);
         if (!session) {
             this.logger.error(`addFlow: Session ${sessionId} not found`);
-            await SendAlarm.sendTextMessage('Session Not Found', `addFlow, SessionID ${sessionId} not found`);
             throw new Error(`addFlow: Session ${sessionId} not found`);
         }
 
@@ -99,7 +97,6 @@ export class Runtime {
             this.flows.delete(flowId);
         } else {
             this.logger.error(`Flow ${flowId} not found`);
-            await SendAlarm.sendTextMessage('Flow Not Found', `Flow ${flowId} not found`);
             throw new Error(`Flow ${flowId} not found`);
         }
     }
@@ -153,7 +150,6 @@ export class Runtime {
         // 检查会话总数限制
         if (this.sessions.size >= this.maxTotalSessions) {
             this.logger.error(`createSession: Maximum number of sessions reached (${this.maxTotalSessions}). Current sessions: ${this.sessions.size}`);
-            await SendAlarm.sendTextMessage('Session Limit Reached', `Cannot create session ${session_id}. Maximum sessions limit (${this.maxTotalSessions}) reached. Current sessions: ${this.sessions.size}`);
             throw new Error(`Maximum number of sessions reached (${this.maxTotalSessions}). Current sessions: ${this.sessions.size}`);
         }
 
@@ -214,7 +210,6 @@ export class Runtime {
                 this.logger.log(`Session initialization completed successfully, id: ${id}`);
             } catch (error) {
                 this.logger.error(`Session initialization failed, id: ${id}, error: ${error.message}`);
-                await SendAlarm.sendTextMessage('Session initialization failed, id: ' + id, error.message);
 
                 // 从sessions中移除失败的会话
                 this.sessions.delete(id);
