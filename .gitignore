@@ -134,3 +134,5 @@ dist
 config.json
 browser/config.json
 
+# crawler data
+worklets/crawler/data/tools.json
