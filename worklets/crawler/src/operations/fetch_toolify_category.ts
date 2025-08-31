@@ -4,6 +4,7 @@ import { cleanWebsiteUrl, formatCompactNumber, stripImageQueryParams } from './u
 //import { z } from "zod";
 import { TIMEOUT_MILLISECONDS } from "../constants";
 import { ToolifyCategoryOutputSchema } from "../schemas";
+import { CategorizedToolDataManager, ToolData } from "./tool_data_manager";
 
 interface SecondCategoryItem {
     parentName: string;
@@ -283,33 +284,20 @@ const fetch_item_detail = async (page: Page, name: string, url: string): Promise
     }
 };
 
-interface ToolCard {
-  toolUrl: string;
-  title: string;
-  description: string;
-  websiteUrl: string;
-  imgSrc: string;
-}
-
-export const start_from_category = async (page: Page): Promise<string> => {
+export const start_from_category = async (page: Page, dataManager: CategorizedToolDataManager): Promise<string> => {
   try {
     // 1. 获取所有二级分类
     const url = "https://www.toolify.ai/category";
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.waitForSelector(".category-item");
     await page.waitForTimeout(TIMEOUT_MILLISECONDS);
-    await scroll_preload(page); // 保持您的原有滚动逻辑
+    await scroll_preload(page);
 
     const itemElements = await page.locator(".category-item").all();
     const results: SecondCategoryItem[] = [];
     
     for (const itemEl of itemElements) {
       try {
-        /// for test
-        if (results.length > 0) {
-            break;
-        }
-
         const spanEl = itemEl.locator("span").first();
         if (!(await spanEl.count())) continue;
         
@@ -328,20 +316,29 @@ export const start_from_category = async (page: Page): Promise<string> => {
     console.info(`二级分类总数: ${results.length}`);
 
     let allCategorys = [];
-    for (const category of results) {
-      const tools = await scrapeCategoryTools(page, category.url);
-      allCategorys.push({ category, tools });    
+    // for (const category of results) {
+    for (let i = 0; i < 1; i++) {
+    // for (let i = 0; i < results.length; i++) {
+        const category = results[i];
+
+        const tools = await scrapeCategoryTools(page, category.url);
+    //   allCategorys.push({ category, tools });
+
+        console.log(tools.length ,"tools in Category: ", category);
+
+        dataManager.batchUpsertTools(category.parentName, tools, true);  
+        dataManager.saveToFile();
     }
 
-      return JSON.stringify(allCategorys, null, 2);
+    return JSON.stringify(allCategorys, null, 2);
   } catch (error) {
     return JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2);
   }
 };
 
 // Playwright 实现的工具抓取
-async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]> {
-  const tools: ToolCard[] = [];
+async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]> {
+  const tools: ToolData[] = [];
   let currentPage = 1;
   
   // 确保初始页面加载完成
@@ -369,8 +366,6 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]>
           const img = card.querySelector('.logo-img-wrapper img') as HTMLImageElement | null;
           const imgSrc = img?.getAttribute('src') || '';
 
-        //   console.log(`>>> tool: ${toolUrl}, logo: ${imgSrc}, title: ${title}, description: ${description}, website: ${websiteUrl}`);
-
           cards.push({ toolUrl, title, description, websiteUrl, imgSrc });
         });
       });
@@ -393,6 +388,7 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]>
         // @ts-ignore
         walk((window as any).__NUXT__);
       } catch { }
+      
       return { cards, logoMap };
     });
 
@@ -413,22 +409,25 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolCard[]>
         
         tools.push({
           toolUrl: c.toolUrl,
-          imgSrc: logoUrl,
+          logoUrl: logoUrl,
           title: c.title,
           description: c.description,
-          websiteUrl: cleanedWebsite
+          website: cleanedWebsite
         });
         
         console.log(`tool: ${c.toolUrl}, logo: ${logoUrl}, title: ${c.title}, description: ${c.description}, website: ${cleanedWebsite}`);
 
-        try {
-            const { err: dErr } = await fetch_item_detail(page, c.title, c.toolUrl);
-            if (dErr) {
-                console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
-            }
-        } catch (e) {
-            console.warn(`[detail] exception for ${c.toolUrl}:`, e);
-        }
+
+        // TODO: 8.31
+        // TODO:: 暂时注释掉详情页抓取，避免频繁请求
+        // try {
+        //     const { err: dErr } = await fetch_item_detail(page, c.title, c.toolUrl);
+        //     if (dErr) {
+        //         console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
+        //     }
+        // } catch (e) {
+        //     console.warn(`[detail] exception for ${c.toolUrl}:`, e);
+        // }
 
       } catch (e) {
         console.error('工具卡片解析失败:', e);
