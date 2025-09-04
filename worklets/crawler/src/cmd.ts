@@ -23,8 +23,7 @@ async function main() {
     await session.waitForInitialization();
 
     try {
-        const result = await crawler.execute("toolify");
-        console.log("Result>>>: ", result);
+        await crawler.execute("toolify");
     } catch (err) {
         console.error("Error running crawler:", err);
     } finally {

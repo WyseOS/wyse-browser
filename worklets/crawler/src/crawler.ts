@@ -6,7 +6,7 @@ import { FOLDER_DESTINATION } from "./constants";
 import { IWorklet } from "../../../browser/src/interfaces/iworklet";
 import { Session } from "../../../browser/src/session";
 import { start_from_category } from "./operations/fetch_toolify_category";
-import { CategorizedToolDataManager } from "./operations/tool_data_manager";
+import { IncrementalToolDataManager } from "./operations/tool_data_manager";
 
 chromium.use(stealth());
 
@@ -36,7 +36,7 @@ export class Crawler implements IWorklet {
   async execute(actionName: string, ...args: any[]): Promise<string> {
     switch (actionName) {
       case 'toolify':
-        const dataManager = new CategorizedToolDataManager;
+        const dataManager = new IncrementalToolDataManager;
         return this.fetch_from_category(dataManager);
       default:
         throw new Error(`Unknown action: ${actionName}`);
@@ -47,7 +47,7 @@ export class Crawler implements IWorklet {
     console.log(`Worklet ${this.name} disposed`);
   }
 
-  async fetch_from_category(dataManager: CategorizedToolDataManager): Promise<string> {
+  async fetch_from_category(dataManager: IncrementalToolDataManager): Promise<string> {
     console.log("fetch from Toolify category");
     const page = await this.session.getDefaultPage();
     const output = await start_from_category(page, dataManager);

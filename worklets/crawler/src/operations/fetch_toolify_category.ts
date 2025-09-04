@@ -4,7 +4,7 @@ import { cleanWebsiteUrl, formatCompactNumber, stripImageQueryParams } from './u
 //import { z } from "zod";
 import { TIMEOUT_MILLISECONDS } from "../constants";
 import { ToolifyCategoryOutputSchema } from "../schemas";
-import { CategorizedToolDataManager, ToolData } from "./tool_data_manager";
+import { IncrementalToolDataManager, ToolData } from "./tool_data_manager";
 
 interface SecondCategoryItem {
     parentName: string;
@@ -284,7 +284,7 @@ const fetch_item_detail = async (page: Page, name: string, url: string): Promise
     }
 };
 
-export const start_from_category = async (page: Page, dataManager: CategorizedToolDataManager): Promise<string> => {
+export const start_from_category = async (page: Page, dataManager: IncrementalToolDataManager): Promise<string> => {
   try {
     // 1. 获取所有二级分类
     const url = "https://www.toolify.ai/category";
@@ -317,17 +317,26 @@ export const start_from_category = async (page: Page, dataManager: CategorizedTo
 
     let allCategorys = [];
     // for (const category of results) {
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 2; i++) {
     // for (let i = 0; i < results.length; i++) {
         const category = results[i];
 
-        const tools = await scrapeCategoryTools(page, category.url);
-    //   allCategorys.push({ category, tools });
+        console.log("Tools in Category: ", category);
 
-        console.log(tools.length ,"tools in Category: ", category);
+        const newTools = await scrapeCategoryTools(page, category.url);
+        // allCategorys.push({ category, tools });
 
-        dataManager.batchUpsertTools(category.parentName, tools, true);  
-        dataManager.saveToFile();
+        // dataManager.batchUpsertTools(category.parentName, tools, true);  
+        // dataManager.saveToFile();
+
+        // 批量添加新工具（自动判断是否已存在）
+        const addedCount = dataManager.batchUpsertTools(
+            category.parentName,
+            category.name, 
+            newTools
+        );
+
+        console.log(`新增了 ${addedCount} 个工具`);
     }
 
     return JSON.stringify(allCategorys, null, 2);
