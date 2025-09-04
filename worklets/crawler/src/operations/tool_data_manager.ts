@@ -36,9 +36,11 @@ interface ToolDatabase {
 export class IncrementalToolDataManager {
   private baseDir: string;
   private baseFilePath: string;
+  private incremental: boolean;
 
-  constructor(baseDir: string = './data') {
+  constructor(baseDir: string = './data', incremental: boolean = true) {
     this.baseDir = path.resolve(baseDir);
+    this.incremental = incremental;
     this.baseFilePath = path.join(this.baseDir, 'base.json');
     
     // 确保目录存在
@@ -139,64 +141,117 @@ export class IncrementalToolDataManager {
     tool: ToolData,
     createCategoryIfNotExist: boolean = true
   ): boolean {
-    const allExistingUrls = this.getAllToolUrls();
-    
-    // 如果工具已存在，不进行增量更新
-    if (allExistingUrls.has(tool.toolUrl)) {
-      console.log(`Tool ${tool.toolUrl} already exists, skipping...`);
-      return false;
-    }
-
-    // 工具不存在，添加到增量文件
-    const now = new Date().toISOString();
-    const incrementalFileName = `incremental_${now.replace(/[:.]/g, '-')}.json`;
-    const incrementalFilePath = path.join(this.baseDir, incrementalFileName);
-    
-    let incrementalData: ToolDatabase;
-    
-    if (fs.existsSync(incrementalFilePath)) {
-      incrementalData = this.loadDataFromFile(incrementalFilePath);
-    } else {
-      incrementalData = {
-        version: now,
-        lastUpdated: now,
-        categories: []
-      };
-    }
-
-    let category = incrementalData.categories.find(c => c.name === categoryName);
-    if (!category) {
-      if (!createCategoryIfNotExist) {
-        throw new Error(`Category '${categoryName}' not found`);
+    if (this.incremental) {
+      // 增量模式：检查工具是否已存在
+      const allExistingUrls = this.getAllToolUrls();
+      
+      // 如果工具已存在，不进行增量更新
+      if (allExistingUrls.has(tool.toolUrl)) {
+        console.log(`Tool ${tool.toolUrl} already exists, skipping...`);
+        return false;
       }
-      category = {
-        name: categoryName,
-        lastUpdated: now,
-        secondCategories: []
-      };
-      incrementalData.categories.push(category);
+
+      // 工具不存在，添加到增量文件
+      const now = new Date().toISOString();
+      const incrementalFileName = `incremental_${now.replace(/[:.]/g, '-')}.json`;
+      const incrementalFilePath = path.join(this.baseDir, incrementalFileName);
+      
+      let incrementalData: ToolDatabase;
+      
+      if (fs.existsSync(incrementalFilePath)) {
+        incrementalData = this.loadDataFromFile(incrementalFilePath);
+      } else {
+        incrementalData = {
+          version: now,
+          lastUpdated: now,
+          categories: []
+        };
+      }
+
+      let category = incrementalData.categories.find(c => c.name === categoryName);
+      if (!category) {
+        if (!createCategoryIfNotExist) {
+          throw new Error(`Category '${categoryName}' not found`);
+        }
+        category = {
+          name: categoryName,
+          lastUpdated: now,
+          secondCategories: []
+        };
+        incrementalData.categories.push(category);
+      }
+
+      let secondCategory = category.secondCategories.find(sc => sc.name === secondCategoryName);
+      if (!secondCategory) {
+        secondCategory = {
+          name: secondCategoryName,
+          tools: []
+        };
+        category.secondCategories.push(secondCategory);
+      }
+
+      secondCategory.tools.push({
+        ...tool,
+        lastUpdated: now
+      });
+
+      category.lastUpdated = now;
+      incrementalData.lastUpdated = now;
+      incrementalData.version = now;
+
+      this.saveDataToFile(incrementalFilePath, incrementalData);
+      return true;
+    } else {
+      // 非增量模式：直接保存到 base.json
+      const baseData = this.loadDataFromFile(this.baseFilePath);
+      const now = new Date().toISOString();
+      
+      let category = baseData.categories.find(c => c.name === categoryName);
+      if (!category) {
+        if (!createCategoryIfNotExist) {
+          throw new Error(`Category '${categoryName}' not found`);
+        }
+        category = {
+          name: categoryName,
+          lastUpdated: now,
+          secondCategories: []
+        };
+        baseData.categories.push(category);
+      }
+
+      let secondCategory = category.secondCategories.find(sc => sc.name === secondCategoryName);
+      if (!secondCategory) {
+        secondCategory = {
+          name: secondCategoryName,
+          tools: []
+        };
+        category.secondCategories.push(secondCategory);
+      }
+
+      // 检查工具是否已存在
+      const existingToolIndex = secondCategory.tools.findIndex(t => t.toolUrl === tool.toolUrl);
+      
+      if (existingToolIndex === -1) {
+        // 新工具
+        secondCategory.tools.push({
+          ...tool,
+          lastUpdated: now
+        });
+      } else {
+        // 更新现有工具
+        secondCategory.tools[existingToolIndex] = {
+          ...tool,
+          lastUpdated: now
+        };
+      }
+
+      category.lastUpdated = now;
+      baseData.lastUpdated = now;
+      baseData.version = now;
+
+      this.saveDataToFile(this.baseFilePath, baseData);
+      return true;
     }
-
-    let secondCategory = category.secondCategories.find(sc => sc.name === secondCategoryName);
-    if (!secondCategory) {
-      secondCategory = {
-        name: secondCategoryName,
-        tools: []
-      };
-      category.secondCategories.push(secondCategory);
-    }
-
-    secondCategory.tools.push({
-      ...tool,
-      lastUpdated: now
-    });
-
-    category.lastUpdated = now;
-    incrementalData.lastUpdated = now;
-    incrementalData.version = now;
-
-    this.saveDataToFile(incrementalFilePath, incrementalData);
-    return true;
   }
 
   /**
@@ -216,7 +271,8 @@ export class IncrementalToolDataManager {
       }
     });
     
-    console.log(`Added ${addedCount} new tools to incremental files`);
+    const mode = this.incremental ? 'incremental files' : 'base.json';
+    console.log(`Added/Updated ${addedCount} tools to ${mode}`);
     return addedCount;
   }
 
@@ -227,20 +283,25 @@ export class IncrementalToolDataManager {
     // 先加载基础数据
     const baseData = this.loadDataFromFile(this.baseFilePath);
     
-    // 合并所有增量数据
-    const incrementalFiles = this.getAllIncrementalFiles();
-    const mergedData: ToolDatabase = {
-      version: baseData.version,
-      lastUpdated: baseData.lastUpdated,
-      categories: JSON.parse(JSON.stringify(baseData.categories)) // 深拷贝
-    };
+    if (this.incremental) {
+      // 增量模式：合并所有增量数据
+      const incrementalFiles = this.getAllIncrementalFiles();
+      const mergedData: ToolDatabase = {
+        version: baseData.version,
+        lastUpdated: baseData.lastUpdated,
+        categories: JSON.parse(JSON.stringify(baseData.categories)) // 深拷贝
+      };
 
-    incrementalFiles.forEach(filePath => {
-      const incrementalData = this.loadDataFromFile(filePath);
-      this.mergeData(mergedData, incrementalData);
-    });
+      incrementalFiles.forEach(filePath => {
+        const incrementalData = this.loadDataFromFile(filePath);
+        this.mergeData(mergedData, incrementalData);
+      });
 
-    return mergedData;
+      return mergedData;
+    } else {
+      // 非增量模式：只返回基础数据
+      return baseData;
+    }
   }
 
   private mergeData(target: ToolDatabase, source: ToolDatabase): void {
@@ -291,6 +352,11 @@ export class IncrementalToolDataManager {
    * 清理所有增量文件（可选：将增量数据合并到base.json后清理）
    */
   public mergeIncrementalToBase(): void {
+    if (!this.incremental) {
+      console.log('Not in incremental mode, nothing to merge');
+      return;
+    }
+    
     const allData = this.getAllData();
     this.saveDataToFile(this.baseFilePath, allData);
     
@@ -338,7 +404,7 @@ export class IncrementalToolDataManager {
       totalTools,
       lastUpdated: allData.lastUpdated,
       version: allData.version,
-      incrementalFiles: this.getAllIncrementalFiles().length
+      incrementalFiles: this.incremental ? this.getAllIncrementalFiles().length : 0
     };
   }
 
@@ -347,5 +413,19 @@ export class IncrementalToolDataManager {
    */
   public getAllToolUrlsList(): string[] {
     return Array.from(this.getAllToolUrls());
+  }
+
+  /**
+   * 获取当前模式
+   */
+  public isIncrementalMode(): boolean {
+    return this.incremental;
+  }
+
+  /**
+   * 切换模式
+   */
+  public setIncrementalMode(incremental: boolean): void {
+    this.incremental = incremental;
   }
 }

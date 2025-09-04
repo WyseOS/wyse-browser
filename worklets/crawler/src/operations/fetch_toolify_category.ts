@@ -443,35 +443,61 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]>
       }
     }
 
-    // 改进的翻页逻辑
-    const nextPageLink = await page.$(`.tools-pagination a[href*="page=${currentPage + 1}"]:not([disabled])`);
-    
-    if (nextPageLink) {
-      currentPage++;
-      await Promise.all([
-        nextPageLink.click(),
-        page.waitForLoadState('networkidle'),
-        page.waitForSelector('.tool-item', { timeout: 10000 })
-      ]);
-      await page.waitForTimeout(1000); // 额外等待1秒确保稳定
-    } else {
-      // 检查是否有下一页箭头按钮（且未被禁用）
-      const nextArrowBtn = await page.$('.tools-pagination a:has(> svg.svg-icon.text-sm):not([disabled])');
-      if (nextArrowBtn) {
-        currentPage++;
-        await Promise.all([
-          nextArrowBtn.click(),
-          page.waitForLoadState('networkidle'),
-          page.waitForSelector('.tool-item', { timeout: 10000 })
-        ]);
-        await page.waitForTimeout(1000);
-      } else {
-        break; // 没有下一页了
-      }
+    const hasNextPage = await simpleNavigateToNextPage(page, currentPage);
+    if (!hasNextPage) {
+        console.log('翻页结束');
+        break;
     }
+    
+    currentPage++;
+    await page.waitForTimeout(1000 + Math.random() * 2000); // 随机延时
   }
 
   return tools;
+}
+
+async function simpleNavigateToNextPage(page: Page, currentPage: number): Promise<boolean> {
+  try {
+    await page.waitForSelector('.tools-pagination', { timeout: 5000 });
+    
+    // 优先查找数字链接
+    let nextPageElement = await page.$(`.tools-pagination a[href*="page=${currentPage + 1}"]`);
+    
+    // 如果找不到数字链接，查找箭头按钮
+    // if (!nextPageElement) {
+    //   nextPageElement = await page.$('.tools-pagination a:has(svg.svg-icon.text-sm)');
+    // }
+    
+    if (nextPageElement) {
+      const isDisabled = await nextPageElement.getAttribute('disabled');
+      if (!isDisabled) {
+        console.log(`翻页到第 ${currentPage + 1} 页`);
+        
+        // 简单的点击和等待策略
+        await nextPageElement.click();
+        
+        // 等待固定时间，让页面加载
+        await page.waitForTimeout(5000);
+        
+        // 再等待工具项出现
+        try {
+          await page.waitForSelector('.tool-item', { timeout: 5000 });
+        } catch (e) {
+          console.log('工具项等待超时，但继续执行');
+        }
+        
+        await page.waitForTimeout(2000);
+        return true;
+      }
+    }
+    
+    console.log('没有找到下一页，可能是最后一页');
+    return false;
+    
+  } catch (error) {
+    console.error('翻页出错:', error);
+    return false;
+  }
 }
 
 const fetch_items_in_category = async (page: Page, parentName: string, name: string, url: string, count: number): Promise<{ err: string; items: ToolItem[] }> => {

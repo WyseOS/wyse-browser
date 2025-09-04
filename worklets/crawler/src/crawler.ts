@@ -36,7 +36,7 @@ export class Crawler implements IWorklet {
   async execute(actionName: string, ...args: any[]): Promise<string> {
     switch (actionName) {
       case 'toolify':
-        const dataManager = new IncrementalToolDataManager;
+        const dataManager = new IncrementalToolDataManager("./data", false);
         return this.fetch_from_category(dataManager);
       default:
         throw new Error(`Unknown action: ${actionName}`);
