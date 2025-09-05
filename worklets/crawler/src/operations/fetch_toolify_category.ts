@@ -7,13 +7,6 @@ import { ToolifyCategoryOutputSchema } from "../schemas";
 import { IncrementalToolDataManager, ToolData } from "./tool_data_manager";
 import { CategoryDataManager, SecondCategoryItem } from "./catagory_manager";
 
-// interface SecondCategoryItem {
-//     parentName: string;
-//     name: string;
-//     url: string;
-//     count: number;
-// }
-
 interface ToolItem {
     toolUrl: string;
     logoUrl: string;
@@ -294,50 +287,52 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
     await page.waitForTimeout(TIMEOUT_MILLISECONDS);
     await scroll_preload(page);
 
-    const itemElements = await page.locator(".category-item").all();
-    const results: SecondCategoryItem[] = [];
+    // TODO: 
+    // catagory 爬取部分需要单独处理，如果有更新再去爬取具体的数据。
+    // const itemElements = await page.locator(".category-item").all();
+    // const results: SecondCategoryItem[] = [];
     
-    for (const itemEl of itemElements) {
-      try {
-        const spanEl = itemEl.locator("span").first();
-        if (!(await spanEl.count())) continue;
+    // for (const itemEl of itemElements) {
+    //   try {
+    //     const spanEl = itemEl.locator("span").first();
+    //     if (!(await spanEl.count())) continue;
         
-        const text = await spanEl.textContent() || "";
-        const cleanText = text.replace(/\s+/g, " ").trim();
-        if (!cleanText) continue;
+    //     const text = await spanEl.textContent() || "";
+    //     const cleanText = text.replace(/\s+/g, " ").trim();
+    //     if (!cleanText) continue;
 
-        const { err, items } = await fetch_second_category(page, cleanText);
-        if (err) console.warn(`二级分类抓取失败 '${cleanText}':`, err);
-        results.push(...items);
+    //     const { err, items } = await fetch_second_category(page, cleanText);
+    //     if (err) console.warn(`二级分类抓取失败 '${cleanText}':`, err);
+    //     results.push(...items);
 
-        categoryManager.upsertCategory(cleanText);
-        categoryManager.batchUpsertSecondCategories(cleanText, items);
+    //     categoryManager.upsertCategory(cleanText);
+    //     categoryManager.batchUpsertSecondCategories(cleanText, items);
 
-        console.log("item: ", cleanText, items);
+    //     // console.log("item: ", cleanText, items);
 
-      } catch (e) {
-        console.error(`元素处理错误 '${url}':`, e);
-      }
-    }
-
-    // console.info(`二级分类总数: ${results.length}`);
-
-    // for (let i = 0; i < 2; i++) {
-    // // for (let i = 0; i < results.length; i++) {
-    //     const category = results[i];
-
-    //     console.log("Tools in Category: ", category);
-
-    //     const newTools = await scrapeCategoryTools(page, category.url);
-    //     // 批量添加新工具（自动判断是否已存在）
-    //     const addedCount = dataManager.batchUpsertTools(
-    //         category.parentName,
-    //         category.name, 
-    //         newTools
-    //     );
-
-    //     console.log(`新增了 ${addedCount} 个工具`);
+    //   } catch (e) {
+    //     console.error(`元素处理错误 '${url}':`, e);
+    //   }
     // }
+
+    const categoriesToCrawl = categoryManager.getAllSecondCategories();
+    // for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < categoriesToCrawl.length; i++) {
+        const catagory = categoriesToCrawl[i];
+        const {parentCategory, secondCategory} = catagory;
+
+        // console.log(catagory)
+
+        const newTools = await scrapeCategoryTools(page, secondCategory.url);
+        // 批量添加新工具（自动判断是否已存在）
+        const addedCount = dataManager.batchUpsertTools(
+            parentCategory,
+            secondCategory.name, 
+            newTools
+        );
+
+        console.log(`新增了 ${addedCount} 个工具`);
+    }
 
     return JSON.stringify([], null, 2);
   } catch (error) {
@@ -635,47 +630,3 @@ const scroll_preload = async (page: Page): Promise<void> => {
     }
     await page.evaluate(() => window.scrollTo(0, 0));
 };
-
-// export const start_from_category = async (page: Page): Promise<string> => {
-//     try {
-//         const url = "https://www.toolify.ai/category";
-//         await page.goto(url, { waitUntil: "domcontentloaded" });
-//         await page.waitForSelector(".category-item");
-//         await page.waitForTimeout(TIMEOUT_MILLISECONDS);
-//         await scroll_preload(page);
-
-//         const itemElements = await page.$$(".category-item");
-//         const results: SecondCategoryItem[] = [];
-//         for (const itemEl of itemElements) {
-//             try {
-//                 const spanEl = await itemEl.$("span");
-//                 if (!spanEl) {
-//                     continue;
-//                 }
-//                 const text = await spanEl.evaluate((el: Element) => (el.textContent || "").replace(/\s+/g, " ").trim());
-//                 if (!text) continue;
-//                 const { err, items } = await fetch_second_category(page, text);
-//                 if (err) {
-//                     console.warn(`Fetch second category failed for '${text}':`, err);
-//                 }
-//                 results.push(...items);
-//             } catch (e) {
-//                 console.error(`Fetch item error for '${url}':`, e);
-//                 continue;
-//             }
-//         }
-//         console.info(`second-level total: ${results.length}`);
-
-//         const [r] = results ?? []
-//         if (r) {
-//         // for (const r of results) {
-//             // console.info(`parent: ${r.parentName}, url: ${r.url}, name: ${r.name}, count: ${r.count}`);
-//             console.info("r = ", r);
-
-//             await fetch_items_in_category(page, r.parentName, r.name, r.url, r.count);
-//         }
-//         return JSON.stringify("{}", null, 2);
-//     } catch (error) {
-//         return error as unknown as string;
-//     }
-// };
