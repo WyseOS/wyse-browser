@@ -316,12 +316,10 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
     // }
 
     const categoriesToCrawl = categoryManager.getAllSecondCategories();
-    // for (let i = 0; i < 2; i++) {
+    // for (let i = 0; i < 2; i++) { # for validation
     for (let i = 0; i < categoriesToCrawl.length; i++) {
         const catagory = categoriesToCrawl[i];
         const {parentCategory, secondCategory} = catagory;
-
-        // console.log(catagory)
 
         const newTools = await scrapeCategoryTools(page, secondCategory.url);
         // 批量添加新工具（自动判断是否已存在）
