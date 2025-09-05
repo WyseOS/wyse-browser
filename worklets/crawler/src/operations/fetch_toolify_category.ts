@@ -320,8 +320,8 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
     // }
 
     const categoriesToCrawl = categoryManager.getAllSecondCategories();
-    for (let i = 0; i < 1; i++) { // for validation
-    // for (let i = 0; i < categoriesToCrawl.length; i++) {
+    // for (let i = 0; i < 1; i++) { // for validation
+    for (let i = 0; i < categoriesToCrawl.length; i++) {
         const catagory = categoriesToCrawl[i];
         const {parentCategory, secondCategory} = catagory;
 
