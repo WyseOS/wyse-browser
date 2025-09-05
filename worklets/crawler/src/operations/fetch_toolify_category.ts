@@ -4,7 +4,7 @@ import { cleanWebsiteUrl, formatCompactNumber, stripImageQueryParams } from './u
 //import { z } from "zod";
 import { TIMEOUT_MILLISECONDS } from "../constants";
 import { ToolifyCategoryOutputSchema } from "../schemas";
-import { IncrementalToolDataManager, ToolData } from "./tool_data_manager";
+import { IncrementalToolDataManager, ToolData, ToolDetail } from "./tool_data_manager";
 import { CategoryDataManager, SecondCategoryItem } from "./catagory_manager";
 
 interface ToolItem {
@@ -63,8 +63,6 @@ const toAbsoluteToolifyUrl = (maybePath: string): string => {
         return maybePath;
     }
 };
-
-
 
 const fetch_item_detail = async (page: Page, name: string, url: string): Promise<{ err: string; detail: ItemDetail | null }> => {
     let err = "";
@@ -266,11 +264,11 @@ const fetch_item_detail = async (page: Page, name: string, url: string): Promise
             twitterUrl: scraped.twitterUrl,
             githubUrl: scraped.githubUrl,
         };
-        console.log(`[detail] ${detail.name} | ${detail.websiteUrl} | Intro: ${detail.introduction?.slice(0, 80)}`);
-        console.log(`[detail] Added on: ${detail.addedOn} | Monthly Visitors: ${detail.monthlyVisitors.raw} (${detail.monthlyVisitors.value}) | Social & Email: ${detail.socialAndEmail}`);
-        console.log(`[detail] Links: discord=${detail.discordUrl} company=${detail.companyName} login=${detail.loginUrl} signup=${detail.signUpUrl} pricing=${detail.pricingUrl}`);
-        console.log(`[detail] Social: fb=${detail.facebookUrl} tw=${detail.twitterUrl} gh=${detail.githubUrl}`);
-        console.log(`[detail] Screenshots: ${detail.screenshotUrls.join(', ')}`);
+        // console.log(`[detail] ${detail.name} | ${detail.websiteUrl} | Intro: ${detail.introduction?.slice(0, 80)}`);
+        // console.log(`[detail] Added on: ${detail.addedOn} | Monthly Visitors: ${detail.monthlyVisitors.raw} (${detail.monthlyVisitors.value}) | Social & Email: ${detail.socialAndEmail}`);
+        // console.log(`[detail] Links: discord=${detail.discordUrl} company=${detail.companyName} login=${detail.loginUrl} signup=${detail.signUpUrl} pricing=${detail.pricingUrl}`);
+        // console.log(`[detail] Social: fb=${detail.facebookUrl} tw=${detail.twitterUrl} gh=${detail.githubUrl}`);
+        // console.log(`[detail] Screenshots: ${detail.screenshotUrls.join(', ')}`);
         return { err, detail };
     } catch (e) {
         err = (e as Error).message || String(e);
@@ -316,8 +314,8 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
     // }
 
     const categoriesToCrawl = categoryManager.getAllSecondCategories();
-    // for (let i = 0; i < 2; i++) { # for validation
-    for (let i = 0; i < categoriesToCrawl.length; i++) {
+    for (let i = 0; i < 1; i++) { // for validation
+    // for (let i = 0; i < categoriesToCrawl.length; i++) {
         const catagory = categoriesToCrawl[i];
         const {parentCategory, secondCategory} = catagory;
 
@@ -338,7 +336,6 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
   }
 };
 
-// Playwright 实现的工具抓取
 async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]> {
   const tools: ToolData[] = [];
   let currentPage = 1;
@@ -358,18 +355,18 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]>
       
       containers.forEach(c => {
             const toolCards = Array.from(c.querySelectorAll('.tool-item .tool-card'));
-        toolCards.forEach(card => {
-          const titleAnchor = card.querySelector('.card-text-content a[href^="/tool/"]') as HTMLAnchorElement | null;
-          const toolUrl = titleAnchor?.getAttribute('href') || '';
-          const title = toText(card.querySelector('.card-text-content h2'));
-          const description = toText(card.querySelector('.card-text-content p'));
-          const websiteAnchor = Array.from(card.querySelectorAll('a')).find(a => a.querySelector('.visit-btn')) as HTMLAnchorElement | null;
-          const websiteUrl = websiteAnchor?.getAttribute('href') || '';
-          const img = card.querySelector('.logo-img-wrapper img') as HTMLImageElement | null;
-          const imgSrc = img?.getAttribute('src') || '';
+            toolCards.forEach(card => {
+                const titleAnchor = card.querySelector('.card-text-content a[href^="/tool/"]') as HTMLAnchorElement | null;
+                const toolUrl = titleAnchor?.getAttribute('href') || '';
+                const title = toText(card.querySelector('.card-text-content h2'));
+                const description = toText(card.querySelector('.card-text-content p'));
+                const websiteAnchor = Array.from(card.querySelectorAll('a')).find(a => a.querySelector('.visit-btn')) as HTMLAnchorElement | null;
+                const websiteUrl = websiteAnchor?.getAttribute('href') || '';
+                const img = card.querySelector('.logo-img-wrapper img') as HTMLImageElement | null;
+                const imgSrc = img?.getAttribute('src') || '';
 
-          cards.push({ toolUrl, title, description, websiteUrl, imgSrc });
-        });
+                cards.push({ toolUrl, title, description, websiteUrl, imgSrc });
+            });
       });
       
       const logoMap: Record<string, string> = {};
@@ -402,38 +399,56 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]>
 
     // 处理抓取到的卡片数据
     for (const c of cards) {
-      try {
-        const match = c.toolUrl.match(/\/tool\/([^\/?#]+)/);
-        const handle = match?.[1] || '';
-        const logoFromNuxt = handle ? logoMap[handle] : '';
-        const logoUrl = logoFromNuxt || toAbsolute(c.imgSrc);
-        const cleanedWebsite = cleanWebsiteUrl(c.websiteUrl);
-        
-        tools.push({
-          toolUrl: c.toolUrl,
-          logoUrl: logoUrl,
-          title: c.title,
-          description: c.description,
-          website: cleanedWebsite
-        });
-        
-        console.log(`tool: ${c.toolUrl}, logo: ${logoUrl}, title: ${c.title}, description: ${c.description}, website: ${cleanedWebsite}`);
+        try {
+            const match = c.toolUrl.match(/\/tool\/([^\/?#]+)/);
+            const handle = match?.[1] || '';
+            const logoFromNuxt = handle ? logoMap[handle] : '';
+            const logoUrl = logoFromNuxt || toAbsolute(c.imgSrc);
+            const cleanedWebsite = cleanWebsiteUrl(c.websiteUrl);
+            
+            // tools.push({
+            //     toolUrl: c.toolUrl,
+            //     logoUrl: logoUrl,
+            //     title: c.title,
+            //     description: c.description,
+            //     website: cleanedWebsite
+            // });
 
+            // 创建 tool 对象
+            const tool: ToolData = {
+                toolUrl: c.toolUrl,
+                logoUrl: logoUrl,
+                title: c.title,
+                description: c.description,
+                website: cleanedWebsite
+            };
+            
+            console.log(`Tool: ${c.toolUrl}`);
 
-        // TODO: 8.31
-        // TODO:: 暂时注释掉详情页抓取，避免频繁请求
-        // try {
-        //     const { err: dErr } = await fetch_item_detail(page, c.title, c.toolUrl);
-        //     if (dErr) {
-        //         console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
-        //     }
-        // } catch (e) {
-        //     console.warn(`[detail] exception for ${c.toolUrl}:`, e);
-        // }
+            // TODO: 8.31
+            // TODO:: 暂时注释掉详情页抓取，避免频繁请求
+            try {
+                const { err: dErr, detail } = await fetch_item_detail(page, c.title, c.toolUrl);
+                if (dErr) {
+                    console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
+                } else {
+                    // 没有错误，更新 detail 字段
+                    if (detail && typeof detail === 'object') {
+                        // console.log('[detail]:', JSON.stringify(detail, null, 2))
 
-      } catch (e) {
-        console.error('工具卡片解析失败:', e);
-      }
+                        tool.detail = detail as ToolDetail; // 更新 tool 对象的 detail 字段
+                    }
+                }
+            } catch (e) {
+                console.warn(`[detail] exception for ${c.toolUrl}:`, e);
+            }
+
+            // 将 tool 对象添加到 tools 数组中
+            tools.push(tool);
+
+        } catch (e) {
+            console.error('工具卡片解析失败:', e);
+        }
     }
 
     const hasNextPage = await simpleNavigateToNextPage(page, currentPage);
@@ -450,20 +465,20 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]>
 }
 
 async function simpleNavigateToNextPage(page: Page, currentPage: number): Promise<boolean> {
-  try {
+    try {
     await page.waitForSelector('.tools-pagination', { timeout: 5000 });
-    
+
     // 优先查找数字链接
     let nextPageElement = await page.$(`.tools-pagination a[href*="page=${currentPage + 1}"]`);
-    
+
     // 如果找不到数字链接，查找箭头按钮
     // if (!nextPageElement) {
     //   nextPageElement = await page.$('.tools-pagination a:has(svg.svg-icon.text-sm)');
     // }
-    
+
     if (nextPageElement) {
-      const isDisabled = await nextPageElement.getAttribute('disabled');
-      if (!isDisabled) {
+        const isDisabled = await nextPageElement.getAttribute('disabled');
+        if (!isDisabled) {
         console.log(`翻页到第 ${currentPage + 1} 页`);
         
         // 简单的点击和等待策略
@@ -474,23 +489,23 @@ async function simpleNavigateToNextPage(page: Page, currentPage: number): Promis
         
         // 再等待工具项出现
         try {
-          await page.waitForSelector('.tool-item', { timeout: 5000 });
+            await page.waitForSelector('.tool-item', { timeout: 5000 });
         } catch (e) {
-          console.log('工具项等待超时，但继续执行');
+            console.log('工具项等待超时，但继续执行');
         }
         
         await page.waitForTimeout(2000);
         return true;
-      }
+        }
     }
-    
+
     console.log('没有找到下一页，可能是最后一页');
     return false;
-    
-  } catch (error) {
+
+    } catch (error) {
     console.error('翻页出错:', error);
     return false;
-  }
+    }
 }
 
 const fetch_items_in_category = async (page: Page, parentName: string, name: string, url: string, count: number): Promise<{ err: string; items: ToolItem[] }> => {
