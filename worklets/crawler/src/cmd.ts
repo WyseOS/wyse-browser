@@ -3,6 +3,19 @@ import { Session } from "../../../browser/src/session";
 import { SessionContext } from "../../../browser/src/session_context";
 
 async function main() {
+    const args = process.argv.slice(2); // 获取命令行参数 (排除 node 和脚本名)
+    const command = args[0]; // 第一个参数作为命令
+
+    console.log("Starting crawler with command:", command, "and args:", args.slice(1));
+
+    if (!command) {
+        console.error("请提供命令。用法: ts-node src/cmd.ts <command> [options]");
+        console.error("可用命令:");
+        console.error("  all                     - 抓取所有分类");
+        console.error("  specific <parent> [child] - 抓取指定分类 (例如: 'Writing & Editing' 或 'Writing & Editing' 'AI Book Writing')");
+        process.exit(1);
+    }
+
     const crawler = new Crawler();
     const session = new Session();
     const properties = new Map<string, string | number>();
@@ -23,7 +36,7 @@ async function main() {
     await session.waitForInitialization();
 
     try {
-        await crawler.execute("toolify");
+        await crawler.execute(command, ...args);
     } catch (err) {
         console.error("Error running crawler:", err);
     } finally {
