@@ -5,13 +5,14 @@ import { cleanWebsiteUrl, formatCompactNumber, stripImageQueryParams } from './u
 import { TIMEOUT_MILLISECONDS } from "../constants";
 import { ToolifyCategoryOutputSchema } from "../schemas";
 import { IncrementalToolDataManager, ToolData } from "./tool_data_manager";
+import { CategoryDataManager, SecondCategoryItem } from "./catagory_manager";
 
-interface SecondCategoryItem {
-    parentName: string;
-    name: string;
-    url: string;
-    count: number;
-}
+// interface SecondCategoryItem {
+//     parentName: string;
+//     name: string;
+//     url: string;
+//     count: number;
+// }
 
 interface ToolItem {
     toolUrl: string;
@@ -284,7 +285,7 @@ const fetch_item_detail = async (page: Page, name: string, url: string): Promise
     }
 };
 
-export const start_from_category = async (page: Page, dataManager: IncrementalToolDataManager): Promise<string> => {
+export const start_from_category = async (page: Page, categoryManager: CategoryDataManager, dataManager: IncrementalToolDataManager): Promise<string> => {
   try {
     // 1. 获取所有二级分类
     const url = "https://www.toolify.ai/category";
@@ -308,38 +309,37 @@ export const start_from_category = async (page: Page, dataManager: IncrementalTo
         const { err, items } = await fetch_second_category(page, cleanText);
         if (err) console.warn(`二级分类抓取失败 '${cleanText}':`, err);
         results.push(...items);
+
+        categoryManager.upsertCategory(cleanText);
+        categoryManager.batchUpsertSecondCategories(cleanText, items);
+
+        console.log("item: ", cleanText, items);
+
       } catch (e) {
         console.error(`元素处理错误 '${url}':`, e);
       }
     }
 
-    console.info(`二级分类总数: ${results.length}`);
+    // console.info(`二级分类总数: ${results.length}`);
 
-    let allCategorys = [];
-    // for (const category of results) {
-    for (let i = 0; i < 2; i++) {
-    // for (let i = 0; i < results.length; i++) {
-        const category = results[i];
+    // for (let i = 0; i < 2; i++) {
+    // // for (let i = 0; i < results.length; i++) {
+    //     const category = results[i];
 
-        console.log("Tools in Category: ", category);
+    //     console.log("Tools in Category: ", category);
 
-        const newTools = await scrapeCategoryTools(page, category.url);
-        // allCategorys.push({ category, tools });
+    //     const newTools = await scrapeCategoryTools(page, category.url);
+    //     // 批量添加新工具（自动判断是否已存在）
+    //     const addedCount = dataManager.batchUpsertTools(
+    //         category.parentName,
+    //         category.name, 
+    //         newTools
+    //     );
 
-        // dataManager.batchUpsertTools(category.parentName, tools, true);  
-        // dataManager.saveToFile();
+    //     console.log(`新增了 ${addedCount} 个工具`);
+    // }
 
-        // 批量添加新工具（自动判断是否已存在）
-        const addedCount = dataManager.batchUpsertTools(
-            category.parentName,
-            category.name, 
-            newTools
-        );
-
-        console.log(`新增了 ${addedCount} 个工具`);
-    }
-
-    return JSON.stringify(allCategorys, null, 2);
+    return JSON.stringify([], null, 2);
   } catch (error) {
     return JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2);
   }
@@ -612,7 +612,8 @@ const fetch_second_category = async (page: Page, name: string): Promise<{ err: s
             const subName = (await linkLoc.locator(':scope > span').innerText()).trim();
             const countText = (await linkLoc.locator(':scope > div').innerText()).trim();
             const count = parseInt(countText.replace(/[^0-9]/g, ''), 10) || 0;
-            items.push({ parentName: name, name: subName, url: fullUrl, count });
+            // items.push({ parentName: name, name: subName, url: fullUrl, count });
+            items.push({name: subName, url: fullUrl, count });
         }
     } catch (error) {
         err = error as unknown as string;
