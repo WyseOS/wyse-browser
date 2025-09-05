@@ -5,7 +5,7 @@ import stealth from "puppeteer-extra-plugin-stealth";
 import { FOLDER_DESTINATION } from "./constants";
 import { IWorklet } from "../../../browser/src/interfaces/iworklet";
 import { Session } from "../../../browser/src/session";
-import { start_from_category } from "./operations/fetch_toolify_category";
+import { start_from_category, start_from_specific_category } from "./operations/fetch_toolify_category";
 import { IncrementalToolDataManager } from "./operations/tool_data_manager";
 import { CategoryDataManager } from "./operations/catagory_manager";
 
@@ -53,7 +53,8 @@ export class Crawler implements IWorklet {
   async fetch_from_category(categoryManager: CategoryDataManager, dataManager: IncrementalToolDataManager): Promise<string> {
     console.log("fetch from Toolify category");
     const page = await this.session.getDefaultPage();
-    const output = await start_from_category(page, categoryManager, dataManager);
+    // const output = await start_from_category(page, categoryManager, dataManager);
+    const output = await start_from_specific_category(page, categoryManager, dataManager, "Image Generation & Editing");
     return output;
   }
 }

@@ -342,6 +342,101 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
   }
 };
 
+
+/**
+ * 抓取指定分类的数据
+ * @param page Playwright 页面实例
+ * @param categoryManager 分类数据管理器
+ * @param dataManager 工具数据管理器
+ * @param parentCategoryName 一级分类名称 (必须)
+ * @param secondCategoryName 二级分类名称 (可选, 如果不提供则抓取该一级分类下的所有二级分类)
+ */
+export const start_from_specific_category = async (
+  page: Page,
+  categoryManager: CategoryDataManager,
+  dataManager: IncrementalToolDataManager,
+  parentCategoryName: string,
+  secondCategoryName?: string
+): Promise<string> => {
+  try {
+    console.log(`\n--- 开始抓取指定分类: ${parentCategoryName}${secondCategoryName ? ` -> ${secondCategoryName}` : ''} ---`);
+
+    let categoriesToCrawl: Array<{ parentName: string; name: string; url: string; count: number; }> = [];
+
+    if (secondCategoryName) {
+        // 精确抓取一个二级分类
+        const specificCategory = categoryManager.getSecondCategoryByName(parentCategoryName, secondCategoryName);
+        if (specificCategory) {
+            categoriesToCrawl.push({
+                parentName: parentCategoryName,
+                name: specificCategory.name,
+                url: specificCategory.url,
+                count: specificCategory.count
+            });
+        } else {
+            const errorMsg = `未找到指定的二级分类: ${parentCategoryName} -> ${secondCategoryName}`;
+            console.error(errorMsg);
+            return JSON.stringify({ error: errorMsg }, null, 2);
+        }
+    } else {
+        // 抓取一级分类下的所有二级分类
+        const secondCategories = categoryManager.getSecondCategories(parentCategoryName);
+        if (secondCategories && secondCategories.length > 0) {
+            const parentCategory = categoryManager.getCategoryByName(parentCategoryName);
+            categoriesToCrawl = secondCategories.map(sc => ({
+                parentName: parentCategoryName,
+                name: sc.name,
+                url: sc.url,
+                count: sc.count
+            }));
+        } else {
+            const errorMsg = `未找到一级分类 '${parentCategoryName}' 或其下无二级分类`;
+            console.error(errorMsg);
+            return JSON.stringify({ error: errorMsg }, null, 2);
+        }
+    }
+
+    console.log(`找到 ${categoriesToCrawl.length} 个分类待处理。`);
+
+    for (let i = 0; i < categoriesToCrawl.length; i++) {
+        const category = categoriesToCrawl[i];
+        console.log(`\n--- 正在处理分类 [${i+1}/${categoriesToCrawl.length}]: ${category.parentName} -> ${category.name} ---`);
+
+        const fullUrl = category.url.startsWith('http') ? category.url : `https://www.toolify.ai${category.url}`;
+        
+        const newTools = await scrapeCategoryTools(page, fullUrl);
+        console.log(`从 ${fullUrl} 抓取到 ${newTools.length} 个工具。`);
+        
+        const addedCount = dataManager.batchUpsertTools(
+            category.parentName,
+            category.name,
+            newTools
+        );
+
+        console.log(`成功添加/更新 ${addedCount} 个工具到 ${category.parentName} -> ${category.name}`);
+    }
+
+    return JSON.stringify({ 
+        message: "指定分类抓取完成", 
+        parentCategory: parentCategoryName,
+        secondCategory: secondCategoryName || "All",
+        processedCategories: categoriesToCrawl.length 
+    }, null, 2);
+    
+  } catch (error) {
+    console.error("start_from_specific_category 执行出错:", error);
+    return JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2);
+  }
+};
+
+// --- 使用示例 ---
+
+// 1. 抓取 "Writing & Editing" 一级分类下的所有二级分类
+// await start_from_specific_category(page, categoryManager, dataManager, "Writing & Editing");
+
+// 2. 精确抓取 "Writing & Editing" -> "AI Book Writing" 这个二级分类
+// await start_from_specific_category(page, categoryManager, dataManager, "Writing & Editing", "AI Book Writing");
+
 async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]> {
   const tools: ToolData[] = [];
   let currentPage = 1;
