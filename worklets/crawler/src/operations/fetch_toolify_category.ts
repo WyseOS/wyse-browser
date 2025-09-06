@@ -1,19 +1,9 @@
 import _ from "lodash";
-import { Page, Locator } from "@playwright/test";
+import { Page } from "@playwright/test";
 import { cleanWebsiteUrl, formatCompactNumber, stripImageQueryParams } from './utils';
-//import { z } from "zod";
 import { TIMEOUT_MILLISECONDS } from "../constants";
-import { ToolifyCategoryOutputSchema } from "../schemas";
 import { IncrementalToolDataManager, ToolData, ToolDetail } from "./tool_data_manager";
 import { CategoryDataManager, SecondCategoryItem } from "./catagory_manager";
-
-interface ToolItem {
-    toolUrl: string;
-    logoUrl: string;
-    title: string;
-    description: string;
-    websiteUrl: string;
-}
 
 interface FaqItem {
     question: string;
@@ -291,34 +281,6 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
     await page.waitForTimeout(TIMEOUT_MILLISECONDS);
     await scroll_preload(page);
 
-    // TODO: 
-    // catagory 爬取部分需要单独处理，如果有更新再去爬取具体的数据。
-    // const itemElements = await page.locator(".category-item").all();
-    // const results: SecondCategoryItem[] = [];
-    
-    // for (const itemEl of itemElements) {
-    //   try {
-    //     const spanEl = itemEl.locator("span").first();
-    //     if (!(await spanEl.count())) continue;
-        
-    //     const text = await spanEl.textContent() || "";
-    //     const cleanText = text.replace(/\s+/g, " ").trim();
-    //     if (!cleanText) continue;
-
-    //     const { err, items } = await fetch_second_category(page, cleanText);
-    //     if (err) console.warn(`二级分类抓取失败 '${cleanText}':`, err);
-    //     results.push(...items);
-
-    //     categoryManager.upsertCategory(cleanText);
-    //     categoryManager.batchUpsertSecondCategories(cleanText, items);
-
-    //     // console.log("item: ", cleanText, items);
-
-    //   } catch (e) {
-    //     console.error(`元素处理错误 '${url}':`, e);
-    //   }
-    // }
-
     const categoriesToCrawl = categoryManager.getAllSecondCategories();
     // for (let i = 0; i < 1; i++) { // for validation
     for (let i = 0; i < categoriesToCrawl.length; i++) {
@@ -428,14 +390,6 @@ export const start_from_specific_category = async (
     return JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2);
   }
 };
-
-// --- 使用示例 ---
-
-// 1. 抓取 "Writing & Editing" 一级分类下的所有二级分类
-// await start_from_specific_category(page, categoryManager, dataManager, "Writing & Editing");
-
-// 2. 精确抓取 "Writing & Editing" -> "AI Book Writing" 这个二级分类
-// await start_from_specific_category(page, categoryManager, dataManager, "Writing & Editing", "AI Book Writing");
 
 async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]> {
   const tools: ToolData[] = [];
@@ -632,76 +586,102 @@ async function simpleNavigateToNextPage(page: Page, currentPage: number): Promis
   }
 }
 
-const fetch_items_in_category = async (page: Page, parentName: string, name: string, url: string, count: number): Promise<{ err: string; items: ToolItem[] }> => {
-    let err = "";
-    const items: ToolItem[] = [];
-    try {
-        await page.goto(url, { waitUntil: "domcontentloaded" });
-        await page.waitForSelector('.tools .tool-item', { timeout: 10000 });
-        const { cards, logoMap } = await page.evaluate(() => {
-            const toText = (el: Element | null): string => (el?.textContent || '').replace(/\s+/g, ' ').trim();
-            const containers = Array.from(document.querySelectorAll('.tools'));
-            const cards: { toolUrl: string; title: string; description: string; websiteUrl: string; imgSrc: string }[] = [];
-            containers.forEach(c => {
-                const toolCards = Array.from(c.querySelectorAll('.tool-item .tool-card'));
-                toolCards.forEach(card => {
-                    const titleAnchor = card.querySelector('.card-text-content a[href^="/tool/"]') as HTMLAnchorElement | null;
-                    const toolUrl = titleAnchor?.getAttribute('href') || '';
-                    const title = toText(card.querySelector('.card-text-content h2'));
-                    const description = toText(card.querySelector('.card-text-content p'));
-                    const websiteAnchor = Array.from(card.querySelectorAll('a')).find(a => a.querySelector('.visit-btn')) as HTMLAnchorElement | null;
-                    const websiteUrl = websiteAnchor?.getAttribute('href') || '';
-                    const img = card.querySelector('.logo-img-wrapper img') as HTMLImageElement | null;
-                    const imgSrc = img?.getAttribute('src') || '';
-                    cards.push({ toolUrl, title, description, websiteUrl, imgSrc });
-                });
-            });
-            const logoMap: Record<string, string> = {};
-            const walk = (obj: unknown): void => {
-                if (!obj || typeof obj !== 'object') return;
-                const anyObj = obj as Record<string, unknown>;
-                const handle = typeof anyObj['handle'] === 'string' ? (anyObj['handle'] as string) : '';
-                const websiteLogo = typeof anyObj['website_logo'] === 'string' ? (anyObj['website_logo'] as string) : '';
-                if (handle && websiteLogo) logoMap[handle] = websiteLogo;
-                for (const key in anyObj) {
-                    if (Object.prototype.hasOwnProperty.call(anyObj, key)) {
-                        try { walk(anyObj[key]); } catch { }
-                    }
-                }
-            };
-            try {
-                // @ts-ignore
-                walk((window as any).__NUXT__);
-            } catch { }
-            return { cards, logoMap };
-        });
-        const toAbsolute = (maybePath: string): string => {
-            if (!maybePath) return '';
-            if (/^https?:\/\//i.test(maybePath)) return maybePath;
-            return new URL(maybePath, 'https://www.toolify.ai').toString();
-        };
-        for (const c of cards) {
-            const match = c.toolUrl.match(/\/tool\/([^\/?#]+)/);
-            const handle = match?.[1] || '';
-            const logoFromNuxt = handle ? logoMap[handle] : '';
-            const logoUrl = logoFromNuxt || toAbsolute(c.imgSrc);
-            const cleanedWebsite = cleanWebsiteUrl(c.websiteUrl);
-            items.push({ toolUrl: c.toolUrl, logoUrl, title: c.title, description: c.description, websiteUrl: cleanedWebsite });
-            console.log(`tool: ${c.toolUrl}, logo: ${logoUrl}, title: ${c.title}, description: ${c.description}, website: ${cleanedWebsite}, parent: ${parentName}, name: ${name}, url: ${url}, total: ${count}`);
-            try {
-                const { err: dErr } = await fetch_item_detail(page, c.title || name, c.toolUrl);
-                if (dErr) {
-                    console.warn(`[detail] fetch failed for ${c.toolUrl}: ${dErr}`);
-                }
-            } catch (e) {
-                console.warn(`[detail] exception for ${c.toolUrl}:`, e);
-            }
+/**
+ * 抓取并更新主分类（一级分类）及其所有子分类（二级分类）
+ * @param page Playwright 页面实例
+ * @param categoryManager 分类数据管理器
+ * @param targetMainCategoryName 可选，指定要抓取的一级分类名称。如果不提供，则抓取所有一级分类。
+ */
+export const fetch_and_update_main_categories = async (
+  page: Page,
+  categoryManager: CategoryDataManager,
+  targetMainCategoryName?: string // 新增参数
+): Promise<string> => {
+  try {
+    console.log("--- 开始抓取主分类 (一级分类) ---");
+    const url = "https://www.toolify.ai/category";
+    
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".category-item");
+    await page.waitForTimeout(TIMEOUT_MILLISECONDS);
+    await scroll_preload(page);
+
+    const itemElements = await page.locator(".category-item").all();
+    console.log(`在页面上找到 ${itemElements.length} 个一级分类项。`);
+
+    let processedCount = 0;
+
+    for (const itemEl of itemElements) {
+      try {
+        const spanEl = itemEl.locator("span").first();
+        if (!(await spanEl.count())) {
+          console.warn("找到一个没有 <span> 子元素的 .category-item，跳过。");
+          continue;
         }
-    } catch (e) {
-        err = e as unknown as string;
+        
+        const text = await spanEl.textContent() || "";
+        const cleanText = text.replace(/\s+/g, " ").trim();
+        if (!cleanText) {
+          console.warn("找到一个文本内容为空的一级分类项，跳过。");
+          continue;
+        }
+
+        // 如果指定了 targetMainCategoryName，则只处理匹配的分类
+        if (targetMainCategoryName && cleanText !== targetMainCategoryName) {
+          console.log(`跳过一级分类: ${cleanText} (正在寻找: ${targetMainCategoryName})`);
+          continue;
+        }
+
+        console.log(`\n--- 正在处理一级分类: ${cleanText} ---`);
+        
+        // 请确保这个函数的导入和签名是正确的
+        const { err, items } = await fetch_second_category(page, cleanText);
+        if (err) {
+            console.warn(`二级分类抓取失败 '${cleanText}':`, err);
+
+            continue; 
+        }
+        
+        // --- 更新 CategoryDataManager ---
+        // 1. 确保一级分类存在
+        categoryManager.upsertCategory(cleanText);
+        
+        // 2. 批量更新或添加二级分类
+        // 注意：items 的类型需要与 SecondCategoryItem[] 匹配
+        // 如果 fetch_second_category 返回的 items 结构不同，需要进行转换
+        if (items && Array.isArray(items)) {
+            categoryManager.batchUpsertSecondCategories(cleanText, items);
+            console.log(`成功更新一级分类 '${cleanText}' 及其 ${items.length} 个二级分类。`);
+        } else {
+            console.warn(`一级分类 '${cleanText}' 的二级分类数据无效或为空。`);
+        }
+        
+        processedCount++;
+
+      } catch (e) {
+        // 捕获单个分类处理中的错误，避免整个流程中断
+        console.error(`处理一级分类元素时出错:`, e);
+        // 可以根据需要决定是否继续循环
+      }
     }
-    return { err, items };
-}
+
+    console.log(`\n--- 主分类抓取完成 ---`);
+    console.log(`总共处理了 ${processedCount} 个一级分类。`);
+
+    return JSON.stringify({ 
+        message: "主分类抓取完成", 
+        processedMainCategories: processedCount,
+        targetedCategory: targetMainCategoryName || "All"
+    }, null, 2);
+
+  } catch (error) {
+    console.error("fetch_and_update_main_categories 执行出错:", error);
+    return JSON.stringify({ 
+        error: error instanceof Error ? error.message : String(error),
+        targetedCategory: targetMainCategoryName || "All"
+    }, null, 2);
+  }
+};
 
 const fetch_second_category = async (page: Page, name: string): Promise<{ err: string; items: SecondCategoryItem[] }> => {
     let err = "";

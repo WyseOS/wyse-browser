@@ -5,7 +5,7 @@ import stealth from "puppeteer-extra-plugin-stealth";
 import { FOLDER_DESTINATION } from "./constants";
 import { IWorklet } from "../../../browser/src/interfaces/iworklet";
 import { Session } from "../../../browser/src/session";
-import { start_from_category, start_from_specific_category } from "./operations/fetch_toolify_category";
+import { start_from_category, start_from_specific_category, fetch_and_update_main_categories } from "./operations/fetch_toolify_category";
 import { IncrementalToolDataManager } from "./operations/tool_data_manager";
 import { CategoryDataManager } from "./operations/catagory_manager";
 
@@ -59,6 +59,18 @@ export class Crawler implements IWorklet {
             const result = await start_from_specific_category(page, categoryManager, dataManager, parentCategory, secondCategory);
             console.log("指定分类抓取结果:", result);
 
+        } else if (command === 'categories') {
+            const targetMainCategory = args[1]; // 可选参数
+
+            if (targetMainCategory) {
+                console.log(`--- 开始抓取并更新指定主分类: ${targetMainCategory} ---`);
+                const result = await fetch_and_update_main_categories(page, categoryManager, targetMainCategory);
+                console.log("指定主分类抓取结果:", result);
+            } else {
+                console.log("--- 开始抓取并更新所有主分类 ---");
+                const result = await fetch_and_update_main_categories(page, categoryManager);
+                console.log("所有主分类抓取结果:", result);
+            }
         } else {
             console.error(`未知命令: ${command}`);
             console.error("可用命令: all, specific");
