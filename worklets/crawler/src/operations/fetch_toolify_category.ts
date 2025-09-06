@@ -1,19 +1,9 @@
 import _ from "lodash";
-import { Page, Locator } from "@playwright/test";
+import { Page } from "@playwright/test";
 import { cleanWebsiteUrl, formatCompactNumber, stripImageQueryParams } from './utils';
-//import { z } from "zod";
 import { TIMEOUT_MILLISECONDS } from "../constants";
-import { ToolifyCategoryOutputSchema } from "../schemas";
 import { IncrementalToolDataManager, ToolData, ToolDetail } from "./tool_data_manager";
 import { CategoryDataManager, SecondCategoryItem } from "./catagory_manager";
-
-interface ToolItem {
-    toolUrl: string;
-    logoUrl: string;
-    title: string;
-    description: string;
-    websiteUrl: string;
-}
 
 interface FaqItem {
     question: string;
@@ -290,34 +280,6 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
     await page.waitForSelector(".category-item");
     await page.waitForTimeout(TIMEOUT_MILLISECONDS);
     await scroll_preload(page);
-
-    // TODO: 
-    // catagory 爬取部分需要单独处理，如果有更新再去爬取具体的数据。
-    // const itemElements = await page.locator(".category-item").all();
-    // const results: SecondCategoryItem[] = [];
-    
-    // for (const itemEl of itemElements) {
-    //   try {
-    //     const spanEl = itemEl.locator("span").first();
-    //     if (!(await spanEl.count())) continue;
-        
-    //     const text = await spanEl.textContent() || "";
-    //     const cleanText = text.replace(/\s+/g, " ").trim();
-    //     if (!cleanText) continue;
-
-    //     const { err, items } = await fetch_second_category(page, cleanText);
-    //     if (err) console.warn(`二级分类抓取失败 '${cleanText}':`, err);
-    //     results.push(...items);
-
-    //     categoryManager.upsertCategory(cleanText);
-    //     categoryManager.batchUpsertSecondCategories(cleanText, items);
-
-    //     // console.log("item: ", cleanText, items);
-
-    //   } catch (e) {
-    //     console.error(`元素处理错误 '${url}':`, e);
-    //   }
-    // }
 
     const categoriesToCrawl = categoryManager.getAllSecondCategories();
     // for (let i = 0; i < 1; i++) { // for validation
