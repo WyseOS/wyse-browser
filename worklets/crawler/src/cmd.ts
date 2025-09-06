@@ -14,6 +14,7 @@ async function main() {
         console.error("  all                     - 抓取所有分类");
         console.error("  specific <parent> [child] - 抓取指定分类 (例如: 'Writing & Editing' 或 'Writing & Editing' 'AI Book Writing')");
         console.error("  categories [main]       - 抓取并更新主分类 (例如: 'categories' 抓取所有, 'categories \"Writing & Editing\"' 抓取指定主分类)");
+        console.error("  specific-batch <cat1> [cat2] [cat3] ... - 串行抓取多个指定的一级分类 (例如: 'specific-batch \"Writing & Editing\" \"Image Generation & Editing\"')");
         process.exit(1);
     }
 

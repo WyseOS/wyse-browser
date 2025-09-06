@@ -59,6 +59,56 @@ export class Crawler implements IWorklet {
             const result = await start_from_specific_category(page, categoryManager, dataManager, parentCategory, secondCategory);
             console.log("指定分类抓取结果:", result);
 
+        } else if (command === 'specific-batch') {
+            const targetCategories = args.slice(1); // 获取除命令外的所有参数作为分类名称列表
+
+            if (targetCategories.length === 0) {
+                console.error("使用 'specific-batch' 命令时，必须提供至少一个一级分类名称。");
+                console.error("用法: ts-node src/cmd.ts specific-batch \"Category A\" \"Category B\" ...");
+                process.exit(1);
+            }
+
+            console.log(`--- 开始串行抓取 ${targetCategories.length} 个指定的一级分类 ---`);
+            
+            let successCount = 0;
+            let failCount = 0;
+
+            // 使用 for...of 循环串行执行
+            for (const categoryName of targetCategories) {
+                try {
+                    console.log(`\n--- [${successCount + failCount + 1}/${targetCategories.length}] 开始抓取: ${categoryName} ---`);
+                    
+                    // 调用现有的 start_from_specific_category 函数
+                    // 注意：这个函数的第四个参数是可选的 secondCategoryName，我们不传，表示抓取该一级分类下的所有二级分类
+                    const resultJson = await start_from_specific_category(page, categoryManager, dataManager, categoryName);
+                    
+                    // 尝试解析结果以检查是否有错误
+                    let result;
+                    try {
+                        result = JSON.parse(resultJson);
+                    } catch (parseErr) {
+                        console.warn(`无法解析 ${categoryName} 的返回结果:`, resultJson);
+                        result = { message: "Unknown result format" };
+                    }
+
+                    if (result.error) {
+                        console.error(`❌ 抓取分类 '${categoryName}' 失败:`, result.error);
+                        failCount++;
+                    } else {
+                        console.log(`✅ 成功抓取分类 '${categoryName}':`, result.message || "完成");
+                        successCount++;
+                    }
+                } catch (err) {
+                    console.error(`❌ 执行分类 '${categoryName}' 时发生未捕获异常:`, err);
+                    failCount++;
+                    // 可以选择在这里 continue 继续下一个，或者 break 停止整个批次
+                    continue; 
+                }
+            }
+
+            console.log(`\n--- 串行批量抓取完成 ---`);
+            console.log(`成功: ${successCount}, 失败: ${failCount}, 总计: ${targetCategories.length}`);
+            
         } else if (command === 'categories') {
             const targetMainCategory = args[1]; // 可选参数
 
