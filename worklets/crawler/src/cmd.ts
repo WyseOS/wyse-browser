@@ -13,6 +13,7 @@ async function main() {
         console.error("可用命令:");
         console.error("  all                     - 抓取所有分类");
         console.error("  specific <parent> [child] - 抓取指定分类 (例如: 'Writing & Editing' 或 'Writing & Editing' 'AI Book Writing')");
+        console.error("  categories [main]       - 抓取并更新主分类 (例如: 'categories' 抓取所有, 'categories \"Writing & Editing\"' 抓取指定主分类)");
         process.exit(1);
     }
 
