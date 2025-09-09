@@ -35,14 +35,10 @@ export class Crawler implements IWorklet {
 	}
 
 	async execute(command: string, ...args: any[]): Promise<string> {
-		// const dataManager = new IncrementalToolDataManager("./data", false, 'base_chinese.json');
-        // const categoryManager = new CategoryDataManager('./data/categories_chinese.json');
-
         let language = this.properties.get('language') || 'zh';
 
-
-        const baseFileName = language === 'en' ? 'base.json' : 'base_chinese.json';
-        const categoriesFileName = language === 'en' ? 'categories.json' : 'categories_chinese.json';
+        const baseFileName = language === 'en' ? 'base_en.json' : 'base_chinese.json';
+        const categoriesFileName = language === 'en' ? 'categories_en.json' : 'categories_chinese.json';
         const baseUrl = language === 'en' ? 'https://www.toolify.ai' : 'https://www.toolify.ai/zh';
         const categoryUrl = language === 'en' ? 'https://www.toolify.ai/category' : 'https://www.toolify.ai/zh/category';
 
@@ -52,7 +48,7 @@ export class Crawler implements IWorklet {
         const categoryManager = new CategoryDataManager(`./data/${categoriesFileName}`);
 
 	    const page = await this.session.getDefaultPage();
-
+        console.log("Command:", command, "Args:", args);
         if (command === 'all') {
             console.log("--- 开始全量抓取 ---");
             const result = await start_from_category(categoryUrl, page, categoryManager, dataManager);
