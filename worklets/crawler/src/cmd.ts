@@ -4,12 +4,24 @@ import { SessionContext } from "../../../browser/src/session_context";
 
 async function main() {
     const args = process.argv.slice(2); // 获取命令行参数 (排除 node 和脚本名)
-    const command = args[0]; // 第一个参数作为命令
+    let command = args[0]; // 第一个参数作为命令
+    let language = 'zh'; // 默认为中文
+    
+    // 检查是否指定了语言参数
+    if (command === '--lang' || command === '-l') {
+        if (args[1]) {
+            language = args[1].toLowerCase() === 'en' ? 'en' : 'zh';
+            command = args[2];
+            args.splice(0, 2); // 移除语言参数
+        }
+    }
 
-    console.log("Starting crawler with command:", command, "and args:", args.slice(1));
+    console.log("Starting crawler with command:", command, "and args:", args.slice(1), "language:", language);
 
     if (!command) {
-        console.error("请提供命令。用法: ts-node src/cmd.ts <command> [options]");
+        console.error("请提供命令。用法: ts-node src/cmd.ts [options] <command> [options]");
+        console.error("选项:");
+        console.error("  -l, --lang <zh|en>      - 指定语言 (默认: zh)");
         console.error("可用命令:");
         console.error("  all                     - 抓取所有分类");
         console.error("  specific <parent> [child] - 抓取指定分类 (例如: 'Writing & Editing' 或 'Writing & Editing' 'AI Book Writing')");
@@ -21,6 +33,9 @@ async function main() {
     const crawler = new Crawler();
     const session = new Session();
     const properties = new Map<string, string | number>();
+    
+    // 将语言设置传递给 crawler
+    properties.set('language', language);
 
     crawler.initialize(session, properties);
 
