@@ -35,14 +35,27 @@ export class Crawler implements IWorklet {
 	}
 
 	async execute(command: string, ...args: any[]): Promise<string> {
-		const dataManager = new IncrementalToolDataManager("./data", false);
-        const categoryManager = new CategoryDataManager('./data/categories.json');
+		// const dataManager = new IncrementalToolDataManager("./data", false, 'base_chinese.json');
+        // const categoryManager = new CategoryDataManager('./data/categories_chinese.json');
+
+        let language = this.properties.get('language') || 'zh';
+
+
+        const baseFileName = language === 'en' ? 'base.json' : 'base_chinese.json';
+        const categoriesFileName = language === 'en' ? 'categories.json' : 'categories_chinese.json';
+        const baseUrl = language === 'en' ? 'https://www.toolify.ai' : 'https://www.toolify.ai/zh';
+        const categoryUrl = language === 'en' ? 'https://www.toolify.ai/category' : 'https://www.toolify.ai/zh/category';
+
+        console.log(`Using language: ${language}, base file: ${baseFileName}, categories file: ${categoriesFileName}, categoryUrl: ${categoryUrl}`);
+        
+        const dataManager = new IncrementalToolDataManager("./data", false, baseFileName);
+        const categoryManager = new CategoryDataManager(`./data/${categoriesFileName}`);
 
 	    const page = await this.session.getDefaultPage();
 
         if (command === 'all') {
             console.log("--- 开始全量抓取 ---");
-            const result = await start_from_category(page, categoryManager, dataManager);
+            const result = await start_from_category(categoryUrl, page, categoryManager, dataManager);
             console.log("全量抓取结果:", result);
 
         } else if (command === 'specific') {
@@ -56,12 +69,11 @@ export class Crawler implements IWorklet {
             }
 
             console.log(`--- 开始抓取指定分类: ${parentCategory} ${secondCategory ? '-> ' + secondCategory : '(所有子分类)'} ---`);
-            const result = await start_from_specific_category(page, categoryManager, dataManager, parentCategory, secondCategory);
+            const result = await start_from_specific_category(baseUrl, page, categoryManager, dataManager, parentCategory, secondCategory);
             console.log("指定分类抓取结果:", result);
 
         } else if (command === 'specific-batch') {
-            const targetCategories = args.slice(1); // 获取除命令外的所有参数作为分类名称列表
-
+            const targetCategories = args.slice(1);
             if (targetCategories.length === 0) {
                 console.error("使用 'specific-batch' 命令时，必须提供至少一个一级分类名称。");
                 console.error("用法: ts-node src/cmd.ts specific-batch \"Category A\" \"Category B\" ...");
@@ -80,7 +92,7 @@ export class Crawler implements IWorklet {
                     
                     // 调用现有的 start_from_specific_category 函数
                     // 注意：这个函数的第四个参数是可选的 secondCategoryName，我们不传，表示抓取该一级分类下的所有二级分类
-                    const resultJson = await start_from_specific_category(page, categoryManager, dataManager, categoryName);
+                    const resultJson = await start_from_specific_category(baseUrl, page, categoryManager, dataManager, categoryName);
                     
                     // 尝试解析结果以检查是否有错误
                     let result;
@@ -114,11 +126,11 @@ export class Crawler implements IWorklet {
 
             if (targetMainCategory) {
                 console.log(`--- 开始抓取并更新指定主分类: ${targetMainCategory} ---`);
-                const result = await fetch_and_update_main_categories(page, categoryManager, targetMainCategory);
+                const result = await fetch_and_update_main_categories(categoryUrl, page, categoryManager, targetMainCategory);
                 console.log("指定主分类抓取结果:", result);
             } else {
                 console.log("--- 开始抓取并更新所有主分类 ---");
-                const result = await fetch_and_update_main_categories(page, categoryManager);
+                const result = await fetch_and_update_main_categories(categoryUrl, page, categoryManager);
                 console.log("所有主分类抓取结果:", result);
             }
         } else {

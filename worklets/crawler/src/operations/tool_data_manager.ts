@@ -37,11 +37,14 @@ export class IncrementalToolDataManager {
   private baseDir: string;
   private baseFilePath: string;
   private incremental: boolean;
+  private baseFileName: string;
 
-  constructor(baseDir: string = './data', incremental: boolean = true) {
+  constructor(baseDir: string = './data', incremental: boolean = true, baseFileName: string = 'base.json') {
     this.baseDir = path.resolve(baseDir);
     this.incremental = incremental;
-    this.baseFilePath = path.join(this.baseDir, 'base.json');
+    this.baseFileName = baseFileName;
+
+    this.baseFilePath = path.join(this.baseDir, this.baseFileName);
     
     // 确保目录存在
     if (!fs.existsSync(this.baseDir)) {

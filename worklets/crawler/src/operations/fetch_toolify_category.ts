@@ -272,16 +272,15 @@ const fetch_item_detail = async (page: Page, name: string, url: string): Promise
     }
 };
 
-export const start_from_category = async (page: Page, categoryManager: CategoryDataManager, dataManager: IncrementalToolDataManager): Promise<string> => {
+export const start_from_category = async (url: string, page: Page, categoryManager: CategoryDataManager, dataManager: IncrementalToolDataManager): Promise<string> => {
   try {
     // 1. 获取所有二级分类
-    const url = "https://www.toolify.ai/category";
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector(".category-item");
-    await page.waitForTimeout(TIMEOUT_MILLISECONDS);
-    await scroll_preload(page);
+    // await page.goto(url, { waitUntil: "domcontentloaded" });
+    // await page.waitForSelector(".category-item");
+    // await page.waitForTimeout(TIMEOUT_MILLISECONDS);
+    // await scroll_preload(page);
 
-    const categoriesToCrawl = categoryManager.getAllSecondCategories();
+    const categoriesToCrawl = categoryManager.getAllSecondCategories();    
     // for (let i = 0; i < 1; i++) { // for validation
     for (let i = 0; i < categoriesToCrawl.length; i++) {
         const catagory = categoriesToCrawl[i];
@@ -314,11 +313,12 @@ export const start_from_category = async (page: Page, categoryManager: CategoryD
  * @param secondCategoryName 二级分类名称 (可选, 如果不提供则抓取该一级分类下的所有二级分类)
  */
 export const start_from_specific_category = async (
-  page: Page,
-  categoryManager: CategoryDataManager,
-  dataManager: IncrementalToolDataManager,
-  parentCategoryName: string,
-  secondCategoryName?: string
+    baseUrl: string,
+    page: Page,
+    categoryManager: CategoryDataManager,
+    dataManager: IncrementalToolDataManager,
+    parentCategoryName: string,
+    secondCategoryName?: string
 ): Promise<string> => {
   try {
     console.log(`\n--- 开始抓取指定分类: ${parentCategoryName}${secondCategoryName ? ` -> ${secondCategoryName}` : ''} ---`);
@@ -364,7 +364,7 @@ export const start_from_specific_category = async (
         const category = categoriesToCrawl[i];
         console.log(`\n--- 正在处理分类 [${i+1}/${categoriesToCrawl.length}]: ${category.parentName} -> ${category.name} ---`);
 
-        const fullUrl = category.url.startsWith('http') ? category.url : `https://www.toolify.ai${category.url}`;
+        const fullUrl = category.url.startsWith('http') ? category.url : `${baseUrl}/${category.url}`;
         
         const newTools = await scrapeCategoryTools(page, fullUrl);
         console.log(`从 ${fullUrl} 抓取到 ${newTools.length} 个工具。`);
@@ -411,7 +411,7 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]>
       containers.forEach(c => {
             const toolCards = Array.from(c.querySelectorAll('.tool-item .tool-card'));
             toolCards.forEach(card => {
-                const titleAnchor = card.querySelector('.card-text-content a[href^="/tool/"]') as HTMLAnchorElement | null;
+                const titleAnchor = card.querySelector('.card-text-content a[href^="/tool/"], .card-text-content a[href^="/zh/tool/"]') as HTMLAnchorElement | null;
                 const toolUrl = titleAnchor?.getAttribute('href') || '';
                 const title = toText(card.querySelector('.card-text-content h2'));
                 const description = toText(card.querySelector('.card-text-content p'));
@@ -472,8 +472,6 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]>
             
             console.log(`Tool Name: ${c.title}`);
 
-            // TODO: 8.31
-            // TODO:: 暂时注释掉详情页抓取，避免频繁请求
             try {
                 const { err: dErr, detail } = await fetch_item_detail(page, c.title, c.toolUrl);
                 if (dErr) {
@@ -593,15 +591,20 @@ async function simpleNavigateToNextPage(page: Page, currentPage: number): Promis
  * @param targetMainCategoryName 可选，指定要抓取的一级分类名称。如果不提供，则抓取所有一级分类。
  */
 export const fetch_and_update_main_categories = async (
+    categoryUrl: string,
   page: Page,
   categoryManager: CategoryDataManager,
   targetMainCategoryName?: string // 新增参数
 ): Promise<string> => {
   try {
-    console.log("--- 开始抓取主分类 (一级分类) ---");
-    const url = "https://www.toolify.ai/category";
+    console.log(`开始抓取分类页面: ${categoryUrl}`);
+    console.log("targetMainCategoryName = ", targetMainCategoryName);
+
+    console.log(`\n--- 开始抓取主分类: ${targetMainCategoryName || "所有分类"} ---`);
+    // console.log("--- 开始抓取主分类 (一级分类) ---");
+    // const url = "https://www.toolify.ai/category";
     
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.goto(categoryUrl, { waitUntil: "domcontentloaded" });
     await page.waitForSelector(".category-item");
     await page.waitForTimeout(TIMEOUT_MILLISECONDS);
     await scroll_preload(page);
