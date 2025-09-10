@@ -23,23 +23,24 @@ interface MonthlyVisitors {
 }
 
 interface ItemDetail {
-    name: string;
-    websiteUrl: string;
-    introduction: string;
+    // name: string;
+    // websiteUrl: string;
+    // introduction: string;
     addedOn: string;
     monthlyVisitors: MonthlyVisitors;
-    socialAndEmail: string;
+    socialAndEmail: string[];
     screenshotUrls: string[];
-    productInformation: ProductInformation;
-    faq: FaqItem[];
-    discordUrl: string;
-    companyName: string;
-    loginUrl: string;
-    signUpUrl: string;
-    pricingUrl: string;
-    facebookUrl: string;
-    twitterUrl: string;
-    githubUrl: string;
+    // productInformation: ProductInformation;
+    // faq: FaqItem[];
+    // companyName: string;
+    // loginUrl: string;
+    // signUpUrl: string;
+    // pricingUrl: string;
+
+    // facebookUrl: string;
+    // twitterUrl: string;
+    // githubUrl: string;
+    // discordUrl: string;
 }
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -54,243 +55,26 @@ const toAbsoluteToolifyUrl = (maybePath: string): string => {
     }
 };
 
-const fetch_item_detail = async (page: Page, name: string, url: string): Promise<{ err: string; detail: ItemDetail | null }> => {
-    let err = "";
-    try {
-        const detailUrl = toAbsoluteToolifyUrl(url);
-        await page.goto(detailUrl, { waitUntil: "domcontentloaded" });
-        type EvalResult = {
-            name: string;
-            websiteUrl: string;
-            introduction: string;
-            addedOn: string;
-            monthlyVisitorsValue: number;
-            socialAndEmail: string;
-            screenshotUrls: string[];
-            productInformation: ProductInformation;
-            faq: FaqItem[];
-            discordUrl: string;
-            companyName: string;
-            loginUrl: string;
-            signUpUrl: string;
-            pricingUrl: string;
-            facebookUrl: string;
-            twitterUrl: string;
-            githubUrl: string;
-        };
-        const scraped: EvalResult = await page.evaluate(() => {
-            const result = {
-                name: '',
-                websiteUrl: '',
-                introduction: '',
-                addedOn: '',
-                monthlyVisitorsValue: 0,
-                socialAndEmail: '',
-                screenshotUrls: [] as string[],
-                productInformation: {
-                    whatIs: '',
-                    howToUse: '',
-                    coreFeatures: [] as string[],
-                    useCases: [] as string[],
-                },
-                faq: [] as { question: string; answer: string }[],
-                discordUrl: '',
-                companyName: '',
-                loginUrl: '',
-                signUpUrl: '',
-                pricingUrl: '',
-                facebookUrl: '',
-                twitterUrl: '',
-                githubUrl: '',
-            };
-            const toText = (el: Element | null): string => (el?.textContent || '').replace(/\s+/g, ' ').trim();
-            const isUrl = (s: unknown): s is string => typeof s === 'string' && /^https?:\/\//i.test(s);
-            const urlsFromDom = Array.from(document.querySelectorAll('a'))
-                .map(a => ({ href: (a as HTMLAnchorElement).href || '', text: toText(a) }))
-                .filter(x => isUrl(x.href));
-            const pullUrlByText = (pattern: RegExp): string => {
-                const found = urlsFromDom.find(u => pattern.test(u.text) || pattern.test(u.href));
-                return found?.href || '';
-            };
-            const metaContent = (name: string): string => {
-                const m = document.head.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
-                return m?.content || '';
-            };
-            const collected: any = {
-                website: '',
-                image: '',
-                what_is: '',
-                how_to_use: '',
-                coreFeaturesList: [] as string[],
-                useCasesList: [] as string[],
-                faq: [] as { q: string; a: string }[],
-                added_on: '',
-                company_name: '',
-                traffic: null as null | Record<string, any>,
-                social_email_text: '',
-                title: '',
-            };
-            const walk = (obj: unknown) => {
-                if (!obj || typeof obj !== 'object') return;
-                const anyObj = obj as Record<string, unknown>;
-                if (!collected.website && typeof anyObj['website'] === 'string') collected.website = anyObj['website'];
-                if (!collected.image && typeof anyObj['image'] === 'string') collected.image = anyObj['image'];
-                if (!collected.title && typeof anyObj['website_name'] === 'string') collected.title = anyObj['website_name'];
-                const ai = anyObj['ai_content'] as Record<string, unknown> | undefined;
-                if (ai && typeof ai === 'object') {
-                    if (!collected.what_is && typeof ai['what_is'] === 'string') collected.what_is = ai['what_is'] as string;
-                    if (!collected.how_to_use && typeof ai['how_to_use'] === 'string') collected.how_to_use = ai['how_to_use'] as string;
-                    const cf = (ai['coreFeaturesList'] || ai['core_features'] || ai['core_features_list']) as unknown;
-                    if (Array.isArray(cf)) {
-                        const flat: string[] = [];
-                        (cf as any[]).forEach((row) => {
-                            if (Array.isArray(row)) row.forEach((x) => { if (typeof x === 'string') flat.push(x); });
-                            else if (typeof row === 'string') flat.push(row);
-                        });
-                        if (flat.length) collected.coreFeaturesList = flat;
-                    }
-                    const uc = (ai['use_cases'] || ai['useCasesList']) as unknown;
-                    if (Array.isArray(uc)) {
-                        const flat: string[] = [];
-                        (uc as any[]).forEach((x) => { if (typeof x === 'string') flat.push(x); });
-                        if (flat.length) collected.useCasesList = flat;
-                    }
-                    const faq = ai['faq'] as unknown;
-                    if (Array.isArray(faq)) {
-                        const mapped = (faq as any[]).map((f) => ({
-                            q: typeof f?.q === 'string' ? f.q as string : '',
-                            a: typeof f?.a === 'string' ? f.a as string : '',
-                        })).filter(x => x.q || x.a);
-                        if (mapped.length) collected.faq = mapped;
-                    }
-                }
-                if (!collected.traffic && anyObj['traffic'] && typeof anyObj['traffic'] === 'object') {
-                    collected.traffic = anyObj['traffic'] as Record<string, any>;
-                }
-                if (!collected.company_name && typeof anyObj['company_name'] === 'string') collected.company_name = anyObj['company_name'];
-                if (!collected.added_on && typeof anyObj['added_on'] === 'string') collected.added_on = anyObj['added_on'];
-                if (!collected.social_email_text && typeof anyObj['social_email_text'] === 'string') collected.social_email_text = anyObj['social_email_text'];
-                for (const key in anyObj) {
-                    if (Object.prototype.hasOwnProperty.call(anyObj, key)) {
-                        try { walk(anyObj[key]); } catch { }
-                    }
-                }
-            };
-            try {
-                // @ts-ignore
-                walk((window as any).__NUXT__);
-            } catch { }
-            result.name = collected.title || toText(document.querySelector('h1')) || name;
-            result.websiteUrl = typeof collected.website === 'string' ? collected.website : '';
-            if (!result.websiteUrl) {
-                const visit = urlsFromDom.find(u => /visit website/i.test(u.text));
-                if (visit) result.websiteUrl = visit.href;
-            }
-            result.introduction = collected.what_is || toText(document.querySelector('.intro, .introduction, [data-section="introduction"]'));
-            result.addedOn = collected.added_on || metaContent('article:published_time') || metaContent('date') || '';
-            if (collected.traffic && typeof collected.traffic === 'object') {
-                const t = collected.traffic as Record<string, any>;
-                const keys = [
-                    'monthly_visits_mail',
-                    'monthly_visits_direct',
-                    'monthly_visits_search',
-                    'monthly_visits_social',
-                    'monthly_visits_referrals',
-                    'monthly_visits_paid_referrals',
-                ];
-                const total = keys.reduce((acc, k) => acc + (Number(t[k]) || 0), 0);
-                if (total > 0) result.monthlyVisitorsValue = Math.round(total);
-            }
-            result.socialAndEmail = collected.social_email_text || toText(document.querySelector('.social-email, [data-section="social-email"]'));
-            const imgCandidates: string[] = [];
-            if (isUrl(collected.image)) imgCandidates.push(collected.image);
-            const ogImg = (document.head.querySelector('meta[name="og:image"], meta[property="og:image"]') as HTMLMetaElement | null)?.content || '';
-            if (isUrl(ogImg)) imgCandidates.push(ogImg);
-            document.querySelectorAll('img').forEach(img => {
-                const src = (img as HTMLImageElement).src || '';
-                if (isUrl(src) && /cdn-images\.toolify\./i.test(src)) imgCandidates.push(src);
-            });
-            result.screenshotUrls = Array.from(new Set(imgCandidates));
-            result.productInformation.whatIs = collected.what_is || '';
-            result.productInformation.howToUse = collected.how_to_use || '';
-            result.productInformation.coreFeatures = collected.coreFeaturesList || [];
-            result.productInformation.useCases = collected.useCasesList || [];
-            result.faq = (collected.faq || []).map((f: any) => ({ question: f.q, answer: f.a }));
-            const byHost = (hostPattern: RegExp): string => (urlsFromDom.find(u => {
-                try { return hostPattern.test(new URL(u.href).host); } catch { return false; }
-            })?.href || '');
-            result.facebookUrl = byHost(/facebook\.com/i);
-            result.twitterUrl = byHost(/(twitter\.com|x\.com)/i);
-            result.githubUrl = byHost(/github\.com/i);
-            result.discordUrl = byHost(/discord\.(gg|com)/i);
-            result.pricingUrl = pullUrlByText(/pricing/i);
-            result.loginUrl = pullUrlByText(/login|sign\s?in/i);
-            result.signUpUrl = pullUrlByText(/sign\s?up|register/i);
-            result.companyName = collected.company_name || toText(document.querySelector('.company-name, [data-section="company"]'));
-            return result;
-        });
-        const cleanedWebsite: string = cleanWebsiteUrl(scraped.websiteUrl);
-        const screenshots: string[] = scraped.screenshotUrls.map(stripImageQueryParams);
-        const monthlyVisitors: MonthlyVisitors = {
-            value: scraped.monthlyVisitorsValue,
-            raw: formatCompactNumber(scraped.monthlyVisitorsValue),
-        };
-        const detail: ItemDetail = {
-            name: scraped.name || name,
-            websiteUrl: cleanedWebsite,
-            introduction: scraped.introduction,
-            addedOn: scraped.addedOn,
-            monthlyVisitors,
-            socialAndEmail: scraped.socialAndEmail,
-            screenshotUrls: screenshots,
-            productInformation: scraped.productInformation,
-            faq: scraped.faq,
-            discordUrl: scraped.discordUrl,
-            companyName: scraped.companyName,
-            loginUrl: scraped.loginUrl ? cleanWebsiteUrl(scraped.loginUrl) : '',
-            signUpUrl: scraped.signUpUrl ? cleanWebsiteUrl(scraped.signUpUrl) : '',
-            pricingUrl: scraped.pricingUrl ? cleanWebsiteUrl(scraped.pricingUrl) : '',
-            facebookUrl: scraped.facebookUrl,
-            twitterUrl: scraped.twitterUrl,
-            githubUrl: scraped.githubUrl,
-        };
-        // console.log(`[detail] ${detail.name} | ${detail.websiteUrl} | Intro: ${detail.introduction?.slice(0, 80)}`);
-        // console.log(`[detail] Added on: ${detail.addedOn} | Monthly Visitors: ${detail.monthlyVisitors.raw} (${detail.monthlyVisitors.value}) | Social & Email: ${detail.socialAndEmail}`);
-        // console.log(`[detail] Links: discord=${detail.discordUrl} company=${detail.companyName} login=${detail.loginUrl} signup=${detail.signUpUrl} pricing=${detail.pricingUrl}`);
-        // console.log(`[detail] Social: fb=${detail.facebookUrl} tw=${detail.twitterUrl} gh=${detail.githubUrl}`);
-        // console.log(`[detail] Screenshots: ${detail.screenshotUrls.join(', ')}`);
-        return { err, detail };
-    } catch (e) {
-        err = (e as Error).message || String(e);
-        return { err, detail: null };
-    } finally {
-        await Promise.race([
-            page.goBack({ waitUntil: 'networkidle' }),
-            new Promise(resolve => setTimeout(resolve, 5000)) // 5秒超时
-        ]);
-        // console.log(`Returned to list page after fetching detail for ${name}`);
-    }
-};
+function extractLastPathSegmentSimple(url: string): string {
+  const segments = url.split('/').filter(segment => segment.length > 0);
+  return segments.length > 0 ? segments[segments.length - 1] : '';
+}
 
 export const start_from_category = async (url: string, page: Page, categoryManager: CategoryDataManager, dataManager: IncrementalToolDataManager): Promise<string> => {
   try {
-    // 1. 获取所有二级分类
-    // await page.goto(url, { waitUntil: "domcontentloaded" });
-    // await page.waitForSelector(".category-item");
-    // await page.waitForTimeout(TIMEOUT_MILLISECONDS);
-    // await scroll_preload(page);
-
     const categoriesToCrawl = categoryManager.getAllSecondCategories();    
     // for (let i = 0; i < 1; i++) { // for validation
     for (let i = 0; i < categoriesToCrawl.length; i++) {
         const catagory = categoriesToCrawl[i];
-        const {parentCategory, secondCategory} = catagory;
+        const {parentCategory, parentCategoryUrl, secondCategory} = catagory;
 
         const newTools = await scrapeCategoryTools(page, secondCategory.url);
         // 批量添加新工具（自动判断是否已存在）
         const addedCount = dataManager.batchUpsertTools(
             parentCategory,
+            parentCategoryUrl,
             secondCategory.name, 
+            secondCategory.url,
             newTools
         );
 
@@ -323,14 +107,18 @@ export const start_from_specific_category = async (
   try {
     console.log(`\n--- 开始抓取指定分类: ${parentCategoryName}${secondCategoryName ? ` -> ${secondCategoryName}` : ''} ---`);
 
-    let categoriesToCrawl: Array<{ parentName: string; name: string; url: string; count: number; }> = [];
+    let categoriesToCrawl: Array<{ parentName: string; parentUrl: string; name: string; url: string; count: number; }> = [];
+
+    const categoryUrl = categoryManager.getCategoryByName(parentCategoryName)?.url || '';
 
     if (secondCategoryName) {
         // 精确抓取一个二级分类
         const specificCategory = categoryManager.getSecondCategoryByName(parentCategoryName, secondCategoryName);
+
         if (specificCategory) {
             categoriesToCrawl.push({
                 parentName: parentCategoryName,
+                parentUrl: categoryUrl,
                 name: specificCategory.name,
                 url: specificCategory.url,
                 count: specificCategory.count
@@ -344,9 +132,10 @@ export const start_from_specific_category = async (
         // 抓取一级分类下的所有二级分类
         const secondCategories = categoryManager.getSecondCategories(parentCategoryName);
         if (secondCategories && secondCategories.length > 0) {
-            const parentCategory = categoryManager.getCategoryByName(parentCategoryName);
+            const parentCategoryUrl = categoryManager.getCategoryByName(parentCategoryName).url || '';
             categoriesToCrawl = secondCategories.map(sc => ({
                 parentName: parentCategoryName,
+                parentUrl: parentCategoryUrl,
                 name: sc.name,
                 url: sc.url,
                 count: sc.count
@@ -362,16 +151,18 @@ export const start_from_specific_category = async (
 
     for (let i = 0; i < categoriesToCrawl.length; i++) {
         const category = categoriesToCrawl[i];
+        // console.log("正在处理分类:", JSON.stringify(category));
         console.log(`\n--- 正在处理分类 [${i+1}/${categoriesToCrawl.length}]: ${category.parentName} -> ${category.name} ---`);
 
         const fullUrl = category.url.startsWith('http') ? category.url : `${baseUrl}/${category.url}`;
-        
         const newTools = await scrapeCategoryTools(page, fullUrl);
         console.log(`从 ${fullUrl} 抓取到 ${newTools.length} 个工具。`);
         
         const addedCount = dataManager.batchUpsertTools(
             category.parentName,
+            category.parentUrl,
             category.name,
+            extractLastPathSegmentSimple(category.url),
             newTools
         );
 
@@ -470,7 +261,7 @@ async function scrapeCategoryTools(page: Page, url: string): Promise<ToolData[]>
                 website: cleanedWebsite
             };
             
-            console.log(`Tool Name: ${c.title}`);
+            console.log(`Tool Name: ${c.title}, tool URL: ${c.toolUrl}`);
 
             try {
                 const { err: dErr, detail } = await fetch_item_detail(page, c.title, c.toolUrl);
@@ -584,6 +375,33 @@ async function simpleNavigateToNextPage(page: Page, currentPage: number): Promis
   }
 }
 
+function processDomArray(html: string): string[] {
+  // 正则表达式匹配 domArr 数组内容
+  const arrayMatch = html.match(/domArr:\s*\[([^\]]*)\]/);
+  if (!arrayMatch) return [];
+  
+  // 提取数组内容部分
+  const arrayContent = arrayMatch[1];
+  
+  // 匹配所有带引号的字符串元素（包括注释）
+  const itemMatches = arrayContent.matchAll(/"([^"]*)"/g);
+  
+  const result: string[] = [];
+  
+  for (const match of itemMatches) {
+    const fullItem = match[1];
+    // 跳过注释行
+    if (fullItem.startsWith('//')) continue;
+    
+    // 移除 "group-" 前缀
+    if (fullItem.startsWith('group-')) {
+      result.push(fullItem.substring(6));
+    }
+  }
+  
+  return result;
+}
+
 /**
  * 抓取并更新主分类（一级分类）及其所有子分类（二级分类）
  * @param page Playwright 页面实例
@@ -592,9 +410,9 @@ async function simpleNavigateToNextPage(page: Page, currentPage: number): Promis
  */
 export const fetch_and_update_main_categories = async (
     categoryUrl: string,
-  page: Page,
-  categoryManager: CategoryDataManager,
-  targetMainCategoryName?: string // 新增参数
+    page: Page,
+    categoryManager: CategoryDataManager,
+    targetMainCategoryName?: string // 新增参数
 ): Promise<string> => {
   try {
     console.log(`开始抓取分类页面: ${categoryUrl}`);
@@ -613,6 +431,9 @@ export const fetch_and_update_main_categories = async (
     console.log(`在页面上找到 ${itemElements.length} 个一级分类项。`);
 
     let processedCount = 0;
+
+    const htmlContent = await page.content();
+    let handles = processDomArray(htmlContent);
 
     for (const itemEl of itemElements) {
       try {
@@ -633,10 +454,11 @@ export const fetch_and_update_main_categories = async (
         if (targetMainCategoryName && cleanText !== targetMainCategoryName) {
           console.log(`跳过一级分类: ${cleanText} (正在寻找: ${targetMainCategoryName})`);
           continue;
-        }
-
-        console.log(`\n--- 正在处理一级分类: ${cleanText} ---`);
+        }        
         
+        let lastSegment = handles[processedCount+1] || ""; // +1 是因为第一个是 "all"
+        console.log(`\n--- 正在处理一级分类: ${cleanText} / ${lastSegment} ---`);
+
         // 请确保这个函数的导入和签名是正确的
         const { err, items } = await fetch_second_category(page, cleanText);
         if (err) {
@@ -644,16 +466,16 @@ export const fetch_and_update_main_categories = async (
 
             continue; 
         }
-        
+
         // --- 更新 CategoryDataManager ---
         // 1. 确保一级分类存在
-        categoryManager.upsertCategory(cleanText);
+        categoryManager.upsertCategory(cleanText, lastSegment);
         
         // 2. 批量更新或添加二级分类
         // 注意：items 的类型需要与 SecondCategoryItem[] 匹配
         // 如果 fetch_second_category 返回的 items 结构不同，需要进行转换
         if (items && Array.isArray(items)) {
-            categoryManager.batchUpsertSecondCategories(cleanText, items);
+            categoryManager.batchUpsertSecondCategories(cleanText, lastSegment, items);
             console.log(`成功更新一级分类 '${cleanText}' 及其 ${items.length} 个二级分类。`);
         } else {
             console.warn(`一级分类 '${cleanText}' 的二级分类数据无效或为空。`);
@@ -749,4 +571,163 @@ const scroll_preload = async (page: Page): Promise<void> => {
         }
     }
     await page.evaluate(() => window.scrollTo(0, 0));
+};
+
+
+
+const fetch_item_detail = async (page: Page, name: string, url: string): Promise<{ err: string; detail: ItemDetail | null }> => {
+    let err = "";
+    try {
+        const detailUrl = toAbsoluteToolifyUrl(url);
+        await page.goto(detailUrl, { waitUntil: "domcontentloaded" });
+        
+        type EvalResult = {
+            // name: string;
+            // websiteUrl: string;
+            // introduction: string;
+            addedOn: string;
+            monthlyVisitorsValue: number;
+            monthlyVisitorsRaw: string;
+            socialAndEmail: string[];
+            screenshotUrls: string[];
+        };
+        
+        const scraped: EvalResult = await page.evaluate(() => {
+            const result = {
+                // name: '',
+                // websiteUrl: '',
+                // introduction: '',
+                addedOn: '',
+                monthlyVisitorsValue: 0,
+                monthlyVisitorsRaw: '',
+                socialAndEmail: [] as string[],
+                screenshotUrls: [] as string[],
+            };
+            
+            const toText = (el: Element | null): string => {
+                if (!el) return '';
+                return (el.textContent || '').replace(/\s+/g, ' ').trim();
+            };
+            
+            // Extract tool name from h1 with class tool-name
+            // const nameElement = document.querySelector('h1.tool-name');
+            // result.name = toText(nameElement) || '';
+            
+            // Extract website URL from "Open site" button
+            // const openSiteButton = document.querySelector('a.to-view-btn[href]');
+            // if (openSiteButton) {
+            //     result.websiteUrl = (openSiteButton as HTMLAnchorElement).href || '';
+            // }
+            
+            // Extract data from the table structure
+            const tableRows = document.querySelectorAll('.table .table-row');
+            tableRows.forEach(row => {
+                const labelCell = row.querySelector('.table-cell:first-child');
+                const valueCell = row.querySelector('.table-cell:last-child');
+                
+                if (!labelCell || !valueCell) return;
+                
+                const labelText = toText(labelCell);
+                
+                switch (labelText) {
+                    // case 'Introduction:':
+                    //     result.introduction = toText(valueCell);
+                    //     break;
+                        
+                    case 'Added on:':
+                        result.addedOn = toText(valueCell);
+                        break;
+                        
+                    case 'Monthly Visitors:':
+                        // Extract the visitor count from the span element
+                        const visitorSpan = valueCell.querySelector('span');
+                        if (visitorSpan) {
+                            const visitorText = toText(visitorSpan);
+                            result.monthlyVisitorsRaw = visitorText;
+                            
+                            // Parse the numeric value
+                            const match = visitorText.match(/([\d.]+)([KMB]?)/i);
+                            if (match) {
+                                const value = parseFloat(match[1]);
+                                const unit = match[2]?.toUpperCase();
+                                
+                                if (!isNaN(value)) {
+                                    switch (unit) {
+                                        case 'K':
+                                            result.monthlyVisitorsValue = Math.round(value * 1000);
+                                            break;
+                                        case 'M':
+                                            result.monthlyVisitorsValue = Math.round(value * 1000000);
+                                            break;
+                                        case 'B':
+                                            result.monthlyVisitorsValue = Math.round(value * 1000000000);
+                                            break;
+                                        default:
+                                            result.monthlyVisitorsValue = Math.round(value);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                        
+                    case 'Social & Email:':
+                        // Extract all social media and email links
+                        const socialLinks = valueCell.querySelectorAll('a[href]');
+                        socialLinks.forEach(link => {
+                            const href = (link as HTMLAnchorElement).href;
+                            if (href) {
+                                result.socialAndEmail.push(href);
+                            }
+                        });
+                        break;
+                }
+            });
+            
+            // Extract screenshot URLs from tool-pic images
+            const screenshotImg = document.querySelector('.tool-pic img');
+            if (screenshotImg) {
+                const src = (screenshotImg as HTMLImageElement).src;
+                if (src) {
+                    result.screenshotUrls = [src];
+                }
+            }
+            
+            return result;
+        });
+        
+        // const cleanedWebsite: string = cleanWebsiteUrl(scraped.websiteUrl);
+        const screenshots: string[] = scraped.screenshotUrls.map(stripImageQueryParams);
+        
+        const monthlyVisitors: MonthlyVisitors = {
+            value: scraped.monthlyVisitorsValue,
+            raw: scraped.monthlyVisitorsRaw,
+        };
+        
+        const detail: ItemDetail = {
+            // name: scraped.name || name,
+            // websiteUrl: cleanedWebsite,
+            // introduction: scraped.introduction,
+            addedOn: scraped.addedOn,
+            monthlyVisitors,
+            socialAndEmail: scraped.socialAndEmail,
+            screenshotUrls: screenshots,
+        };
+        
+        console.log('--- 抓取到的工具详情 ---');
+        // console.log(`[detail] ${detail.name} | ${detail.websiteUrl} | Intro: ${detail.introduction?.slice(0, 80)}`);
+        console.log(`[detail] Added on: ${detail.addedOn} | Monthly Visitors: ${detail.monthlyVisitors.raw} (${detail.monthlyVisitors.value})`);
+        console.log(`[detail] Social & Email Links: ${detail.socialAndEmail.join(', ')}`);
+        console.log(`[detail] Screenshots: ${detail.screenshotUrls.join(', ')}`);
+        console.log("\n");
+        
+        return { err, detail };
+    } catch (e) {
+        err = (e as Error).message || String(e);
+        return { err, detail: null };
+    } finally {
+        await Promise.race([
+            page.goBack({ waitUntil: 'networkidle' }),
+            new Promise(resolve => setTimeout(resolve, 5000)) // 5秒超时
+        ]);
+    }
 };

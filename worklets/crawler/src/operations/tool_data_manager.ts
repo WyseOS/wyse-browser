@@ -18,11 +18,13 @@ export interface ToolData {
 
 interface SecondCategory {
   name: string;
+  url: string;
   tools: ToolData[];
 }
 
 interface ToolCategory {
   name: string;
+  url: string;
   lastUpdated: string;
   secondCategories: SecondCategory[];
 }
@@ -140,7 +142,9 @@ export class IncrementalToolDataManager {
    */
   public upsertTool(
     categoryName: string,
+    categoryUrl: string,
     secondCategoryName: string,
+    secondCategoryUrl: string,
     tool: ToolData,
     createCategoryIfNotExist: boolean = true
   ): boolean {
@@ -178,6 +182,7 @@ export class IncrementalToolDataManager {
         }
         category = {
           name: categoryName,
+          url: categoryUrl,
           lastUpdated: now,
           secondCategories: []
         };
@@ -188,6 +193,7 @@ export class IncrementalToolDataManager {
       if (!secondCategory) {
         secondCategory = {
           name: secondCategoryName,
+          url: secondCategoryUrl,
           tools: []
         };
         category.secondCategories.push(secondCategory);
@@ -216,6 +222,7 @@ export class IncrementalToolDataManager {
         }
         category = {
           name: categoryName,
+          url: categoryUrl,
           lastUpdated: now,
           secondCategories: []
         };
@@ -226,6 +233,7 @@ export class IncrementalToolDataManager {
       if (!secondCategory) {
         secondCategory = {
           name: secondCategoryName,
+          url: secondCategoryUrl,
           tools: []
         };
         category.secondCategories.push(secondCategory);
@@ -262,14 +270,16 @@ export class IncrementalToolDataManager {
    */
   public batchUpsertTools(
     categoryName: string,
+    categoryUrl: string,
     secondCategoryName: string,
+    secondCategoryUrl: string,
     tools: ToolData[],
     createCategoryIfNotExist: boolean = true
   ): number {
     let addedCount = 0;
     
     tools.forEach(tool => {
-      if (this.upsertTool(categoryName, secondCategoryName, tool, createCategoryIfNotExist)) {
+      if (this.upsertTool(categoryName, categoryUrl, secondCategoryName, secondCategoryUrl, tool, createCategoryIfNotExist)) {
         addedCount++;
       }
     });
@@ -314,6 +324,7 @@ export class IncrementalToolDataManager {
       if (!targetCategory) {
         targetCategory = {
           name: sourceCategory.name,
+          url: sourceCategory.url,
           lastUpdated: sourceCategory.lastUpdated,
           secondCategories: []
         };
@@ -326,6 +337,7 @@ export class IncrementalToolDataManager {
         if (!targetSecond) {
           targetSecond = {
             name: sourceSecond.name,
+            url: sourceSecond.url,
             tools: []
           };
           targetCategory!.secondCategories.push(targetSecond);

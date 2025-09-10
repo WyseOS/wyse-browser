@@ -6,6 +6,8 @@ async function main() {
     const args = process.argv.slice(2); // 获取命令行参数 (排除 node 和脚本名)
     let command = args[0]; // 第一个参数作为命令
     let language = 'zh'; // 默认为中文
+
+    console.log("Arguments:", args);
     
     // 检查是否指定了语言参数
     if (command === '--lang' || command === '-l') {
@@ -16,7 +18,7 @@ async function main() {
         }
     }
 
-    console.log("Starting crawler with command:", command, "and args:", args.slice(1), "language:", language);
+    // console.log("Starting crawler with command:", command, "and args:", args.slice(1), "language:", language);
 
     if (!command) {
         console.error("请提供命令。用法: ts-node src/cmd.ts [options] <command> [options]");
@@ -46,7 +48,7 @@ async function main() {
         15000, // timeout ms
         1440, // width
         900, // height
-        false, // headless
+        true, // headless
         "http://localhost", // page_devtool_frontend_host
         "ws://localhost" // page_devtool_ws_host
     );
