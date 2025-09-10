@@ -9,6 +9,7 @@ export interface SecondCategoryItem {
 
 export interface CategoryItem {
   name: string;
+  url: string;
   lastUpdated: string;
   secondCategories: SecondCategoryItem[];
 }
@@ -67,13 +68,14 @@ export class CategoryDataManager {
   /**
    * 添加或更新一级分类
    */
-  public upsertCategory(categoryName: string): CategoryItem {
+  public upsertCategory(categoryName: string, lastSegment: string): CategoryItem {
     const now = new Date().toISOString();
     
     let category = this.data.categories.find(c => c.name === categoryName);
     if (!category) {
       category = {
         name: categoryName,
+        url: lastSegment,
         lastUpdated: now,
         secondCategories: []
       };
@@ -92,6 +94,7 @@ export class CategoryDataManager {
    */
   public upsertSecondCategory(
     categoryName: string,
+    categoryUrl: string,
     secondCategory: SecondCategoryItem
   ): void {
     const now = new Date().toISOString();
@@ -100,6 +103,7 @@ export class CategoryDataManager {
     if (!category) {
       category = {
         name: categoryName,
+        url: categoryUrl,
         lastUpdated: now,
         secondCategories: []
       };
@@ -128,10 +132,11 @@ export class CategoryDataManager {
    */
   public batchUpsertSecondCategories(
     categoryName: string,
+    categoryUrl: string,
     secondCategories: SecondCategoryItem[]
   ): void {
     secondCategories.forEach(secondCat => {
-      this.upsertSecondCategory(categoryName, secondCat);
+      this.upsertSecondCategory(categoryName, categoryUrl, secondCat);
     });
   }
 

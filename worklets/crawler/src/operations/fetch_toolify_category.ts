@@ -57,12 +57,6 @@ const toAbsoluteToolifyUrl = (maybePath: string): string => {
 
 export const start_from_category = async (url: string, page: Page, categoryManager: CategoryDataManager, dataManager: IncrementalToolDataManager): Promise<string> => {
   try {
-    // 1. 获取所有二级分类
-    // await page.goto(url, { waitUntil: "domcontentloaded" });
-    // await page.waitForSelector(".category-item");
-    // await page.waitForTimeout(TIMEOUT_MILLISECONDS);
-    // await scroll_preload(page);
-
     const categoriesToCrawl = categoryManager.getAllSecondCategories();    
     for (let i = 0; i < 1; i++) { // for validation
     // for (let i = 0; i < categoriesToCrawl.length; i++) {
@@ -367,6 +361,33 @@ async function simpleNavigateToNextPage(page: Page, currentPage: number): Promis
   }
 }
 
+function processDomArray(html: string): string[] {
+  // 正则表达式匹配 domArr 数组内容
+  const arrayMatch = html.match(/domArr:\s*\[([^\]]*)\]/);
+  if (!arrayMatch) return [];
+  
+  // 提取数组内容部分
+  const arrayContent = arrayMatch[1];
+  
+  // 匹配所有带引号的字符串元素（包括注释）
+  const itemMatches = arrayContent.matchAll(/"([^"]*)"/g);
+  
+  const result: string[] = [];
+  
+  for (const match of itemMatches) {
+    const fullItem = match[1];
+    // 跳过注释行
+    if (fullItem.startsWith('//')) continue;
+    
+    // 移除 "group-" 前缀
+    if (fullItem.startsWith('group-')) {
+      result.push(fullItem.substring(6));
+    }
+  }
+  
+  return result;
+}
+
 /**
  * 抓取并更新主分类（一级分类）及其所有子分类（二级分类）
  * @param page Playwright 页面实例
@@ -397,6 +418,9 @@ export const fetch_and_update_main_categories = async (
 
     let processedCount = 0;
 
+    const htmlContent = await page.content();
+    let handles = processDomArray(htmlContent);
+
     for (const itemEl of itemElements) {
       try {
         const spanEl = itemEl.locator("span").first();
@@ -416,10 +440,11 @@ export const fetch_and_update_main_categories = async (
         if (targetMainCategoryName && cleanText !== targetMainCategoryName) {
           console.log(`跳过一级分类: ${cleanText} (正在寻找: ${targetMainCategoryName})`);
           continue;
-        }
-
-        console.log(`\n--- 正在处理一级分类: ${cleanText} ---`);
+        }        
         
+        let lastSegment = handles[processedCount+1] || ""; // +1 是因为第一个是 "all"
+        console.log(`\n--- 正在处理一级分类: ${cleanText} / ${lastSegment} ---`);
+
         // 请确保这个函数的导入和签名是正确的
         const { err, items } = await fetch_second_category(page, cleanText);
         if (err) {
@@ -427,16 +452,16 @@ export const fetch_and_update_main_categories = async (
 
             continue; 
         }
-        
+
         // --- 更新 CategoryDataManager ---
         // 1. 确保一级分类存在
-        categoryManager.upsertCategory(cleanText);
+        categoryManager.upsertCategory(cleanText, lastSegment);
         
         // 2. 批量更新或添加二级分类
         // 注意：items 的类型需要与 SecondCategoryItem[] 匹配
         // 如果 fetch_second_category 返回的 items 结构不同，需要进行转换
         if (items && Array.isArray(items)) {
-            categoryManager.batchUpsertSecondCategories(cleanText, items);
+            categoryManager.batchUpsertSecondCategories(cleanText, lastSegment, items);
             console.log(`成功更新一级分类 '${cleanText}' 及其 ${items.length} 个二级分类。`);
         } else {
             console.warn(`一级分类 '${cleanText}' 的二级分类数据无效或为空。`);
