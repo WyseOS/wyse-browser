@@ -55,19 +55,26 @@ const toAbsoluteToolifyUrl = (maybePath: string): string => {
     }
 };
 
+function extractLastPathSegmentSimple(url: string): string {
+  const segments = url.split('/').filter(segment => segment.length > 0);
+  return segments.length > 0 ? segments[segments.length - 1] : '';
+}
+
 export const start_from_category = async (url: string, page: Page, categoryManager: CategoryDataManager, dataManager: IncrementalToolDataManager): Promise<string> => {
   try {
     const categoriesToCrawl = categoryManager.getAllSecondCategories();    
     for (let i = 0; i < 1; i++) { // for validation
     // for (let i = 0; i < categoriesToCrawl.length; i++) {
         const catagory = categoriesToCrawl[i];
-        const {parentCategory, secondCategory} = catagory;
+        const {parentCategory, parentCategoryUrl, secondCategory} = catagory;
 
         const newTools = await scrapeCategoryTools(page, secondCategory.url);
         // 批量添加新工具（自动判断是否已存在）
         const addedCount = dataManager.batchUpsertTools(
             parentCategory,
+            parentCategoryUrl,
             secondCategory.name, 
+            secondCategory.url,
             newTools
         );
 
@@ -100,14 +107,18 @@ export const start_from_specific_category = async (
   try {
     console.log(`\n--- 开始抓取指定分类: ${parentCategoryName}${secondCategoryName ? ` -> ${secondCategoryName}` : ''} ---`);
 
-    let categoriesToCrawl: Array<{ parentName: string; name: string; url: string; count: number; }> = [];
+    let categoriesToCrawl: Array<{ parentName: string; parentUrl: string; name: string; url: string; count: number; }> = [];
+
+    const categoryUrl = categoryManager.getCategoryByName(parentCategoryName)?.url || '';
 
     if (secondCategoryName) {
         // 精确抓取一个二级分类
         const specificCategory = categoryManager.getSecondCategoryByName(parentCategoryName, secondCategoryName);
+
         if (specificCategory) {
             categoriesToCrawl.push({
                 parentName: parentCategoryName,
+                parentUrl: categoryUrl,
                 name: specificCategory.name,
                 url: specificCategory.url,
                 count: specificCategory.count
@@ -121,9 +132,10 @@ export const start_from_specific_category = async (
         // 抓取一级分类下的所有二级分类
         const secondCategories = categoryManager.getSecondCategories(parentCategoryName);
         if (secondCategories && secondCategories.length > 0) {
-            const parentCategory = categoryManager.getCategoryByName(parentCategoryName);
+            const parentCategoryUrl = categoryManager.getCategoryByName(parentCategoryName).url || '';
             categoriesToCrawl = secondCategories.map(sc => ({
                 parentName: parentCategoryName,
+                parentUrl: parentCategoryUrl,
                 name: sc.name,
                 url: sc.url,
                 count: sc.count
@@ -139,16 +151,18 @@ export const start_from_specific_category = async (
 
     for (let i = 0; i < categoriesToCrawl.length; i++) {
         const category = categoriesToCrawl[i];
+        // console.log("正在处理分类:", JSON.stringify(category));
         console.log(`\n--- 正在处理分类 [${i+1}/${categoriesToCrawl.length}]: ${category.parentName} -> ${category.name} ---`);
 
         const fullUrl = category.url.startsWith('http') ? category.url : `${baseUrl}/${category.url}`;
-        
         const newTools = await scrapeCategoryTools(page, fullUrl);
         console.log(`从 ${fullUrl} 抓取到 ${newTools.length} 个工具。`);
         
         const addedCount = dataManager.batchUpsertTools(
             category.parentName,
+            category.parentUrl,
             category.name,
+            extractLastPathSegmentSimple(category.url),
             newTools
         );
 

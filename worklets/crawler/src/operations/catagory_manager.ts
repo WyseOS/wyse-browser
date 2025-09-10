@@ -262,11 +262,13 @@ export class CategoryDataManager {
    * 获取所有二级分类（扁平化）
    */
   public getAllSecondCategories(): Array<{ 
-    parentCategory: string; 
+    parentCategory: string;
+    parentCategoryUrl: string;
     secondCategory: SecondCategoryItem 
   }> {
     const result: Array<{ 
       parentCategory: string; 
+      parentCategoryUrl: string;
       secondCategory: SecondCategoryItem 
     }> = [];
 
@@ -274,6 +276,7 @@ export class CategoryDataManager {
       category.secondCategories.forEach(secondCat => {
         result.push({
           parentCategory: category.name,
+          parentCategoryUrl: category.url,
           secondCategory: secondCat
         });
       });
