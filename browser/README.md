@@ -82,6 +82,18 @@ http://127.0.0.1:13100
 | `POST` | `/api/flow/fire` | Executes an action within a running flow instance. | **Body**: `FireFlowDto`<br>- `flow_instance_id` (string, required)<br>- `action_name` (string, optional, default: `action_flow_start`)<br>- `data` (object, required) |
 | `GET` | `/api/flow/list` | Lists all active flow instances. | _None_ |
 
+### File Management
+
+| Method | Endpoint | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/sessions/:sessionId/files` | Uploads one or more files to a session, checking against session storage limits. | **Path**: `sessionId` (string, required)<br>**Body**: `filePath` (string, optional) - target path for the file, defaults to original name. |
+| `GET` | `/api/sessions/:sessionId/files` | Lists all files stored within a specific session. | **Path**: `sessionId` (string, required) |
+| `GET` | `/api/sessions/:sessionId/files/*` | Downloads a specific file from a session. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
+| `HEAD` | `/api/sessions/:sessionId/files/*` | Retrieves metadata (headers) for a specific file in a session without downloading the content. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
+| `GET` | `/api/sessions/:sessionId/files.zip` | Downloads all files from a session as a ZIP archive. | **Path**: `sessionId` (string, required) |
+| `DELETE` | `/api/sessions/:sessionId/files/*` | Deletes a specific file from a session. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
+| `DELETE` | `/api/sessions/:sessionId/files` | Deletes all files associated with a specific session. | **Path**: `sessionId` (string, required) |
+
 ## Usage
 
 ### Preparation
