@@ -8,7 +8,7 @@
   "dependencies": {
     "@playwright/test": "^1.54.1",
     "@types/minimist": "^1.2.5",
-    "axios": "^1.12.0",
+    "axios": "^1.12.2",
     "commander": "^12.1.0",
     "dayjs": "^1.11.13",
     "lodash": "^4.17.21",
