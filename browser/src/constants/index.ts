@@ -42,8 +42,8 @@ export const DefaultRegion = "US/Pacific";
 export const DefaultSolveCaptcha = false;
 export const DefaultWidth = 1440;
 export const DefaultHeight = 900;
-export const DefaultTimeout = 20 * 1000;     // 页面超时
-export const DefaultElementTimeout = 10000;  //元素等待超时
+export const DefaultTimeout = 20 * 1000;     // Page Loading Timeout
+export const DefaultElementTimeout = 10000;  // Elements Waiting Timeout
 export const DefaultTimezone = "America/New_York";
 
 export const ExtensionPaths = {
@@ -197,3 +197,9 @@ export function GetDefaultFingerprint(): BrowserFingerprintWithHeaders {
         headers: {}
     };
 }
+
+export const FILE_CONSTANTS = {
+    MAX_FILE_SIZE_PER_SESSION: 100 * 1024 * 1024, // 100MB
+    UPLOAD_TEMP_DIR: '/tmp/file-uploads',
+    ARCHIVE_DIR: '/tmp/.browser',
+} as const;

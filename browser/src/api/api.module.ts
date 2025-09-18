@@ -4,9 +4,10 @@ import { ApiService } from './api.service';
 import { Runtime } from '../runtime';
 import { CorsMiddleware } from './cors.middleware';
 import { LoggerMiddleware } from './logger.middleware';
+import { FileModule } from './file.module';
 
 @Module({
-  imports: [],
+  imports: [FileModule],
   controllers: [ApiController],
   providers: [ApiService, Runtime],
 })
