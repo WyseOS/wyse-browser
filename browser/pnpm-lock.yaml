@@ -22,7 +22,7 @@ dependencies:
     version: 6.23.0
   axios:
     specifier: ^1.7.9
-    version: 1.12.0
+    version: 1.12.2
   chromium-bidi:
     specifier: ^0.5.24
     version: 0.5.24(devtools-protocol@0.0.1516431)
@@ -2549,8 +2549,8 @@ packages:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
     dev: false
 
-  /axios@1.12.0:
-    resolution: {integrity: sha512-oXTDccv8PcfjZmPGlWsPSwtOJCZ/b6W5jAMCNcfwJbCzDckwG0jrYJFaWH1yvivfCXjVzV/SPDEhMB3Q+DSurg==}
+  /axios@1.12.2:
+    resolution: {integrity: sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==}
     dependencies:
       follow-redirects: 1.15.11
       form-data: 4.0.4
