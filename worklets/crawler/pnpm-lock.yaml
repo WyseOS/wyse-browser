@@ -4,84 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-importers:
-
-  .:
-    dependencies:
-      '@playwright/test':
-        specifier: ^1.54.1
-        version: 1.54.2
-      '@types/minimist':
-        specifier: ^1.2.5
-        version: 1.2.5
-      axios:
-        specifier: ^1.7.9
-        version: 1.11.0
-      commander:
-        specifier: ^12.1.0
-        version: 12.1.0
-      dayjs:
-        specifier: ^1.11.13
-        version: 1.11.13
-      lodash:
-        specifier: ^4.17.21
-        version: 4.17.21
-      minimist:
-        specifier: ^1.2.8
-        version: 1.2.8
-      papaparse:
-        specifier: ^5.4.1
-        version: 5.5.3
-      playwright-extra:
-        specifier: ^4.3.6
-        version: 4.3.6
-      puppeteer-extra-plugin-stealth:
-        specifier: ^2.11.2
-        version: 2.11.2(playwright-extra@4.3.6)
-      turndown:
-        specifier: ^7.2.0
-        version: 7.2.0
-      yargs:
-        specifier: ^17.7.2
-        version: 17.7.2
-      znv:
-        specifier: ^0.4.0
-        version: 0.4.0(zod@3.25.76)
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
-    devDependencies:
-      '@swc/core':
-        specifier: ^1.9.2
-        version: 1.13.3
-      '@types/lodash':
-        specifier: ^4.17.13
-        version: 4.17.20
-      '@types/node':
-        specifier: ^22.9.0
-        version: 22.17.1
-      '@types/papaparse':
-        specifier: ^5.3.15
-        version: 5.3.16
-      '@types/yargs':
-        specifier: ^17.0.33
-        version: 17.0.33
-      pkg:
-        specifier: ^5.8.1
-        version: 5.8.1
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.13.3)(@types/node@22.17.1)(typescript@5.9.2)
-      ts-node-dev:
-        specifier: ^2.0.0
-        version: 2.0.0(@swc/core@1.13.3)(@types/node@22.17.1)(typescript@5.9.2)
-      tsup:
-        specifier: ^8.3.5
-        version: 8.5.0(@swc/core@1.13.3)(typescript@5.9.2)
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.2
-
 packages:
 
   '@babel/generator@7.18.2':
@@ -1226,7 +1148,6 @@ packages:
         optional: true
       playwright-core:
         optional: true
-
   playwright@1.54.2:
     resolution: {integrity: sha512-Hu/BMoA1NAdRUuulyvQC0pEqZ4vQbGfn8f7wPXcnqQmM+zct9UliKxsIkLNmz/ku7LElUNqmaiv1TG/aL5ACsw==}
     engines: {node: '>=18'}
