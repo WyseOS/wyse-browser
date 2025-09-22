@@ -1,0 +1,34 @@
+{
+  "version": "2025-08-31",
+  "lastUpdated": "2025-08-31T12:00:00Z",
+  "categories": [
+    {
+      "name": "Development",
+      "lastUpdated": "2025-08-30T12:00:00Z",
+      "tools": [
+        {
+          "toolUrl": "https://dev-tool1.com",
+          "logoUrl": "https://dev-tool1.com/logo.png",
+          "title": "Dev Tool 1",
+          "description": "A development tool",
+          "website": "https://dev-tool1.com",
+          "lastUpdated": "2025-08-30T12:00:00Z"
+        }
+      ]
+    },
+    {
+      "name": "Design",
+      "lastUpdated": "2025-08-29T12:00:00Z",
+      "tools": [
+        {
+          "toolUrl": "https://design-tool1.com",
+          "logoUrl": "https://design-tool1.com/logo.png",
+          "title": "Design Tool 1",
+          "description": "A design tool",
+          "website": "https://design-tool1.com",
+          "lastUpdated": "2025-08-29T12:00:00Z"
+        }
+      ]
+    }
+  ]
+}

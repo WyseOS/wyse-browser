@@ -10,3 +10,4 @@ dist
 bin
 .DS_Store
 .vscode
+data/*.json
