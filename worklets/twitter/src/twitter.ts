@@ -15,7 +15,8 @@ import { ops_retweet } from "./operations/ops_retweet";
 import { IWorklet } from "../../../browser/src/interfaces/iworklet";
 import { ops_login } from "./operations/ops_login";
 import { ops_input_otp } from "./operations/ops_input_otp";
-
+import { fetch_help_document } from "./operations/ops_help";
+import { FOLDER_DESTINATION } from "./constants";
 export class Twitter implements IWorklet {
   private accessToken: string;
   private searchKeyword: string;
@@ -47,7 +48,7 @@ export class Twitter implements IWorklet {
     if (actionName !== "action_login" && actionName !== "action_input_otp") {
       this.accessToken = this.properties.get("TwitterAuthToken") as string;
       if (!this.accessToken || this.accessToken === "") {
-        throw new Error("parameter TwitterAuthToken is not found");
+        throw new Error(`Action ${actionName} requires TwitterAuthToken parameter, but it was not found or is empty`);
       }
 
       this.session.browserContext.addCookies([
@@ -112,11 +113,25 @@ export class Twitter implements IWorklet {
         }
         result = await this.actionRetweet(params[0], page);
         break;
+      case 'action_get_help_document':
+        return this.action_get_help_document(page);
       default:
         throw new Error(`Unknown action: ${actionName}`);
     }
 
     return result;
+  }
+
+  async action_get_help_document(page: Page): Promise<string> {
+    console.log("Fetch Help Document start");
+    let err = await fetch_help_document(page, FOLDER_DESTINATION);
+    if (err !== "") {
+      console.log("Fetch Help Document error: " + err);
+      return err;
+    }
+
+    console.log("Fetch Help Document done!");
+    return "";
   }
 
   dispose(): void {
