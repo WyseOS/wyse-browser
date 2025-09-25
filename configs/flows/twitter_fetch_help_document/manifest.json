@@ -1,0 +1,59 @@
+{
+    "name": "twitter_fetch_help_document",
+    "type": "flow",
+    "description": "fetch help document",
+    "version": "0.1.0",
+    "webpage_url": "https://help.x.com/en/using-x",
+    "nodes": [
+        {
+            "name": "FlowStart",
+            "type": "worklet",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Twitter",
+            "type": "worklet",
+            "version": "0.1.0",
+            "properties": {
+                "twitter_auth_token": "$TwitterAuthToken"
+            }
+        },
+        {
+            "name": "FlowEnd",
+            "type": "worklet",
+            "version": "0.1.0"
+        }
+    ],
+    "connections": [
+        {
+            "name": "start the flow, fetch help document",
+            "src": {
+                "worklet": "FlowStart",
+                "action": "action_flow_start"
+            },
+            "dest": [
+                {
+                    "worklet": "Twitter",
+                    "action": "action_get_help_document"
+                }
+            ]
+        },
+        {
+            "name": "fetch help document",
+            "src": {
+                "worklet": "Twitter",
+                "action": "action_get_help_document"
+            },
+            "dest": [
+                {
+                    "worklet": "FlowEnd",
+                    "action": "action_flow_end"
+                }
+            ]
+        }
+    ],
+    "properties": {
+        "TwitterAuthToken": "$TwitterAuthToken"
+    },
+    "parameters": []
+}

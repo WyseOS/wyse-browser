@@ -107,6 +107,17 @@
           "value_type": "string"
         }
       ]
+    },
+    {
+      "name": "action_get_help_document",
+      "description": "fetch help documents",
+      "cmd_input": [],
+      "cmd_output": [
+        {
+          "name": "error",
+          "value_type": "string"
+        }
+      ]
     }
   ],
   "properties": {
