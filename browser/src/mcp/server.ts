@@ -4,7 +4,7 @@ import { BrowserAction } from '../action';
 import { Runtime } from '../runtime';
 import { SessionContext } from '../session_context';
 import { v4 as uuidv4 } from 'uuid';
-import { z } from 'zod';
+import { registerTools } from './tools';
 
 // Create MCP server instance
 export const mcpServer = new McpServer({
@@ -49,7 +49,7 @@ async function getOrCreateSession(): Promise<{ sessionId: string; session: any }
 }
 
 // Execute browser action
-async function executeBrowserAction(actionName: string, params: Record<string, any> = {}): Promise<string> {
+export async function executeBrowserAction(actionName: string, params: Record<string, any> = {}): Promise<string> {
   try {
     const { session } = await getOrCreateSession();
     const browserAction = new BrowserAction();
@@ -62,83 +62,7 @@ async function executeBrowserAction(actionName: string, params: Record<string, a
   }
 }
 
-// Register tools
-mcpServer.registerTool(
-  "helloworld",
-  {
-    title: "Hello World",
-    description: "Prints Hello World"
-  },
-  async () => ({
-    content: [{
-      type: "text",
-      text: String("Hello World")
-    }]
-  })
-);
-
-mcpServer.registerTool(
-  "url",
-  {
-    title: "Get Current URL",
-    description: "Return the current page URL"
-  },
-  async () => {
-    try {
-      const url = await executeBrowserAction("url");
-      return {
-        content: [{
-          type: "text",
-          text: String(url)
-        }]
-      };
-    } catch (error) {
-      console.error("URL Tool Error:", error);
-      return {
-        content: [{
-          type: "text",
-          text: `Error retrieving URL: ${error.message}`
-        }]
-      };
-    }
-  }
-);
-
-mcpServer.registerTool(
-  "visit",
-  {
-    title: "Visit URL",
-    description: "Navigate to a specified URL",
-    inputSchema: {
-      url: z.string().describe('The URL to navigate to'),
-    },
-  },
-  async (params: any) => {
-    try {
-      const url = params?.url;
-      if (!url) {
-        throw new Error("URL parameter is required");
-      }
-      
-      await executeBrowserAction("visit", { url });
-      
-      return {
-        content: [{
-          type: "text",
-          text: `Successfully navigated to ${url}`
-        }]
-      };
-    } catch (error) {
-      console.error("Visit Tool Error:", error);
-      return {
-        content: [{
-          type: "text",
-          text: `Error visiting URL: ${error.message}`
-        }]
-      };
-    }
-  }
-);
+registerTools(mcpServer)
 
 async function main() {
   try {
