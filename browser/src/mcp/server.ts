@@ -1,8 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { BrowserAction} from '../action';
-import { Page } from 'playwright';
+import { defineTabTool } from './define';
+import { z } from 'zod';
+import { Context } from './context';
 
 const browserAction = new BrowserAction();
 
@@ -27,20 +28,49 @@ mcpServer.registerTool(
   })
 );
 
+
+import { Runtime } from '../runtime';
+import { MetadataType } from '../constants';
+import { SessionContext } from '../session_context';
+import { v4 as uuidv4 } from 'uuid';
+
 mcpServer.registerTool(
   "url",
   {
     title: "action-url",
     description: "Return the current page URL"
   },
-  async (page) => {
+  async () => {
     try {
-        const url = await browserAction.action_url(page);
+        // if (!browserAction) {
+        //     throw new Error("BrowserAction not initialized with page context");
+        // }
+
+        
+        let sessionContext = SessionContext.Default();
+        const newSessionId = uuidv4();
+
+        let runtime = new Runtime();
+
+        await runtime.createSession(sessionContext, newSessionId);
+
+        console.log("newSessionId: " + newSessionId);
+
+        const session = runtime.getSession(newSessionId);
+
+
+        // let action = await runtime.getSession(newSessionId);
+        // let instance = runtime.
+
+        const browserAction = new BrowserAction();
+
+        const url = await browserAction.action(session, 0, "url", {})
+
         return {
-        content: [{
-          type: "text",
-          text: String(url)
-        }]
+          content: [{
+            type: "text",
+            text: String(url)
+          }]
       };
     } catch (error) {
       return {
@@ -53,6 +83,55 @@ mcpServer.registerTool(
   }
 );
 
+
+mcpServer.registerTool(
+  "visit",
+  {
+    title: "action_visit",
+    description: "visit page URL"
+  },
+  async () => {
+    try {
+        // if (!browserAction) {
+        //     throw new Error("BrowserAction not initialized with page context");
+        // }
+
+        
+        let sessionContext = SessionContext.Default();
+        const newSessionId = uuidv4();
+
+        let runtime = new Runtime();
+
+        await runtime.createSession(sessionContext, newSessionId);
+
+        console.log("newSessionId: " + newSessionId);
+
+        const session = runtime.getSession(newSessionId);
+
+
+        // let action = await runtime.getSession(newSessionId);
+        // let instance = runtime.
+
+        const browserAction = new BrowserAction();
+
+        const url = await browserAction.action(session, 0, "visit", {"url": "https://www.baidu.com"})
+
+        return {
+          content: [{
+            type: "text",
+            text: String(url)
+          }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error retrieving URL: ${error.message}`
+        }]
+      };
+    }
+  }
+);
 
 async function main() {
   const transport = new StdioServerTransport();

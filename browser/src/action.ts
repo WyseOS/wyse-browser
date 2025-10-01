@@ -5,7 +5,7 @@ import { Logger } from '@nestjs/common';
 import { AnimationUtils } from './utils/animation';
 import { ActionErrorHandler } from './utils/error-handler';
 import { ParameterValidator } from './utils/parameter-validator';
-import { errors } from 'playwright';
+import { errors, Page } from 'playwright';
 
 export class BrowserAction {
     private logger: Logger = new Logger(BrowserAction.name);
@@ -15,6 +15,8 @@ export class BrowserAction {
     private animation: AnimationUtils = new AnimationUtils();
     //Use animation utils for cursor position tracking
     private last_cursor_position = this.animation.getLastCursorPosition()
+
+    private page: Page;
 
     async action(session: Session, page_id: number, action_name: string, params: BrowserActionParameters): Promise<string> {
         const parameters: Map<string, string | number> = new Map();
@@ -32,6 +34,8 @@ export class BrowserAction {
         }
 
         const page = pages[page_id];
+        this.page = page;
+
         let result = "";
         try {
             switch (action_name.toLowerCase()) {
@@ -161,8 +165,20 @@ export class BrowserAction {
         }
     }
 
+    // In the BrowserAction class, ensure proper validation:
     async action_url(page) {
-        return await page.url();
+        try {
+            // Check if page context exists
+            if (!this.page) {
+            throw new Error("Page context is not available");
+            }
+            
+            const url = await page.url();            
+            return url;
+        } catch (error) {
+            console.error("Error in action_url:", error);
+            throw error;
+        }
     }
 
     async action_visit(page, parameters) {
