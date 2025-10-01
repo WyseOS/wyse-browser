@@ -1,7 +1,6 @@
-// tools.ts
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { executeBrowserAction } from './server';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 export function registerTools(mcpServer: McpServer): void {
   mcpServer.registerTool(

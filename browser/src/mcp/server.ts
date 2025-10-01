@@ -1,10 +1,10 @@
+import { v4 as uuidv4 } from 'uuid';
+import { Runtime } from '../runtime';
+import { registerTools } from './tools';
+import { BrowserAction } from '../action';
+import { SessionContext } from '../session_context';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { BrowserAction } from '../action';
-import { Runtime } from '../runtime';
-import { SessionContext } from '../session_context';
-import { v4 as uuidv4 } from 'uuid';
-import { registerTools } from './tools';
 
 // Create MCP server instance
 export const mcpServer = new McpServer({
