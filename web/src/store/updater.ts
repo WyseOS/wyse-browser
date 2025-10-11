@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import useStore from "./global";
 
 export default function Updater() {
-  const { setFlows, setWorklets, setProxyList } = useStore();
+  const { setFlows, setWorklets, setProxyList, setProfileList } = useStore();
   const fetchFlows = useCallback(async () => {
     const result = await fetch(`/api/metadata/list/flow`, {
       headers: { "Access-Control-Allow-Origin": "*" },
@@ -28,7 +28,17 @@ export default function Updater() {
     const data = await result.json();
     console.log("data proxy", data);
     if (data.code === 0) {
-      //setWorklets(data.data.data);
+      setProxyList(data.data.data);
+    }
+  }, []);
+  const fetchProfileList = useCallback(async () => {
+    const result = await fetch(`/api/profile/list`, {
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
+    const data = await result.json();
+    console.log("data proxy", data);
+    if (data.code === 0) {
+      setProfileList(data.data.data);
     }
   }, []);
 
@@ -36,6 +46,7 @@ export default function Updater() {
     fetchFlows();
     fetchWorketlets();
     fetchProxyList();
+    fetchProfileList();
   }, []);
 
   return null;

@@ -13,7 +13,14 @@ import {
   FireFlowDto,
   UpdateMetadataDto,
 } from './dto/api.flow.dto';
-import { CreateProxyDto, CreateProfileDto } from './dto/api.proxy.dto';
+import {
+  CreateProxyDto,
+  CreateProfileDto,
+  UpdateProxyDto,
+  DeleteProxyDto,
+  UpdateProfileDto,
+  DeleteProfileDto,
+} from './dto/api.proxy.dto';
 import { BrowserActionDto, BatchActionsDto } from './dto/api.action.dto';
 import { CreateSessionDto, AddInitScriptDto } from './dto/api.session.dto';
 import { ApiService } from './api.service';
@@ -57,13 +64,47 @@ export class ApiController {
     const response = await this.apiService.createProxy(createProxyDto);
     return res.status(HttpStatus.OK).json(response);
   }
+
+  @Post('/proxy/update')
+  async updateProxy(
+    @Body() updateProxyDto: UpdateProxyDto,
+    @Res() res: ExpressResponse,
+  ) {
+    const response = await this.apiService.updateProxy(updateProxyDto);
+    return res.status(HttpStatus.OK).json(response);
+  }
+  @Post('/proxy/delete')
+  async deleteProxy(
+    @Body() deleteProxyDto: DeleteProxyDto,
+    @Res() res: ExpressResponse,
+  ) {
+    const response = await this.apiService.deleteProxy(deleteProxyDto);
+    return res.status(HttpStatus.OK).json(response);
+  }
+
   @Post('/profile/create')
   async createProfile(
     @Body() createProfileDto: CreateProfileDto,
     @Res() res: ExpressResponse,
   ) {
-    console.log('get data', createProfileDto);
     const response = await this.apiService.createProfile(createProfileDto);
+    return res.status(HttpStatus.OK).json(response);
+  }
+
+  @Post('/profile/update')
+  async updateProfile(
+    @Body() updateProfileDto: UpdateProfileDto,
+    @Res() res: ExpressResponse,
+  ) {
+    const response = await this.apiService.updateProfile(updateProfileDto);
+    return res.status(HttpStatus.OK).json(response);
+  }
+  @Post('/profile/delete')
+  async deleteProfile(
+    @Body() deleteProfieDto: DeleteProfileDto,
+    @Res() res: ExpressResponse,
+  ) {
+    const response = await this.apiService.deleteProfile(deleteProfieDto);
     return res.status(HttpStatus.OK).json(response);
   }
 

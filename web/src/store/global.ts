@@ -18,6 +18,8 @@ interface AppState {
   setWorklets: (value: WorkletProps[]) => void;
   proxyList: any[];
   setProxyList: (value: any[]) => void;
+  profileList: any[];
+  setProfileList: (value: any[]) => void;
 }
 
 const useStore = create<AppState>()(
@@ -42,6 +44,13 @@ const useStore = create<AppState>()(
         set((state: AppState) => {
           return {
             proxyList: value,
+          };
+        }),
+      profileList: [],
+      setProfileList: (value: any[]) =>
+        set((state: AppState) => {
+          return {
+            profileList: value,
           };
         }),
     }),

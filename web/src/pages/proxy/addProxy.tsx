@@ -3,6 +3,7 @@ import * as yup from "yup";
 import { MenuItem, OutlinedInput, Typography } from "@mui/material";
 import Select from "@mui/material/Select";
 import Button from "@mui/material/Button";
+import { Link } from "react-router-dom";
 
 const validationSchemaForProxy = yup.object({
   proxy_name: yup.string(),
@@ -21,16 +22,19 @@ enum ProxyType {
   "all" = "all",
 }
 
-export default function AddProxy() {
+export default function AddProxy(props: any) {
+  const { initalData, callback } = props;
   const proxyFormik = useFormik<any>({
-    initialValues: {
-      proxy_name: "",
-      host: "127.0.0.1",
-      proxyType: "all",
-      port: "8080",
-      username: "",
-      password: "",
-    },
+    initialValues: initalData
+      ? initalData
+      : {
+          proxy_name: "",
+          host: "127.0.0.1",
+          proxyType: "all",
+          port: "8080",
+          username: "",
+          password: "",
+        },
     validationSchema: validationSchemaForProxy,
     onSubmit: () => {
       // console.log(1111);
@@ -40,56 +44,63 @@ export default function AddProxy() {
   const { values } = proxyFormik;
 
   const handleCreateProxy = () => {
-    fetch("/api/proxy/create", {
+    fetch(initalData ? "/api/proxy/update" : "/api/proxy/create", {
       method: "POST",
       body: JSON.stringify(values),
+      headers: {
+        "Content-Type": "application/json",
+      },
     }).then(async (resp) => {
       const data = await resp.json();
-      console.log("resp data", data);
+      if (data.code === 0) {
+        callback();
+      }
     });
   };
 
   return (
     <div className="w-[400px] space-y-4 px-6">
-      {Object.keys(values).map((item: string) => {
-        return (
-          <div key={item} className="space-y-1">
-            <Typography className="capitalize">
-              {item.replace("_", " ")}
-            </Typography>
-            {item === "proxyType" ? (
-              <Select
-                value={values.proxyType}
-                fullWidth
-                onChange={proxyFormik.handleChange}
-              >
-                {Object.keys(ProxyType).map((proxyItem: any) => (
-                  <MenuItem
-                    value={proxyItem}
-                    key={proxyItem}
-                    onClick={() =>
-                      proxyFormik.setFieldValue("proxyType", proxyItem)
-                    }
-                    className="uppercase"
-                  >
-                    {proxyItem.replace("_", " ")}
-                  </MenuItem>
-                ))}
-              </Select>
-            ) : (
-              <OutlinedInput
-                name={item}
-                fullWidth
-                value={values[item] || ""}
-                onChange={proxyFormik.handleChange}
-              />
-            )}
-          </div>
-        );
-      })}
+      {Object.keys(values)
+        .filter((item) => !["proxy_id", "useage"].includes(item))
+        .map((item: string) => {
+          return (
+            <div key={item} className="space-y-1">
+              <Typography className="capitalize">
+                {item.replace("_", " ")}
+              </Typography>
+              {item === "proxyType" ? (
+                <Select
+                  value={values.proxyType}
+                  fullWidth
+                  onChange={proxyFormik.handleChange}
+                >
+                  {Object.keys(ProxyType).map((proxyItem: any) => (
+                    <MenuItem
+                      value={proxyItem}
+                      key={proxyItem}
+                      onClick={() =>
+                        proxyFormik.setFieldValue("proxyType", proxyItem)
+                      }
+                      className="uppercase"
+                    >
+                      {proxyItem.replace("_", " ")}
+                    </MenuItem>
+                  ))}
+                </Select>
+              ) : (
+                <OutlinedInput
+                  name={item}
+                  fullWidth
+                  value={values[item] || ""}
+                  onChange={proxyFormik.handleChange}
+                />
+              )}
+            </div>
+          );
+        })}
       <div className="flex items-center space-x-4">
-        <Button variant="outlined" fullWidth>
-          clear
+        <Button variant="outlined" fullWidth component={Link} to="/proxy">
+          cancel
         </Button>
         <Button variant="contained" fullWidth onClick={handleCreateProxy}>
           Submit

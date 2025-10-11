@@ -3,8 +3,6 @@ import Flows from "@/pages/flow";
 import Profiles from "@/pages/profiles";
 import Proxy from "@/pages/proxy";
 import { Box } from "@mui/material";
-import ProxyCreate from "@/pages/proxy/addProxy";
-import ProfilesCreate from "@/pages/profiles/addProfile";
 
 export default function App() {
   return (
@@ -12,10 +10,8 @@ export default function App() {
       <Header />
       <Routes>
         <Route path="/" element={<Flows />} />
-        <Route path="/proxy" element={<Proxy />} />
-        <Route path="/proxy/create" element={<ProxyCreate />} />
-        <Route path="/profile" element={<Profiles />} />
-        <Route path="/profile/create" element={<ProfilesCreate />} />
+        <Route path="/proxy/:type?" element={<Proxy />} />
+        <Route path="/profile/:type?" element={<Profiles />}></Route>
       </Routes>
     </Box>
   );
