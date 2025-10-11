@@ -1,21 +1,23 @@
 // store.js
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import store from 'store2';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import store from "store2";
 
-interface FlowProps{
-  name:string
+interface FlowProps {
+  name: string;
 }
 
-interface WorkletProps{
-  name:string
+interface WorkletProps {
+  name: string;
 }
 
 interface AppState {
-  flows: FlowProps[],
+  flows: FlowProps[];
   setFlows: (value: FlowProps[]) => void;
-  worklets: FlowProps[]
+  worklets: FlowProps[];
   setWorklets: (value: WorkletProps[]) => void;
+  proxyList: any[];
+  setProxyList: (value: any[]) => void;
 }
 
 const useStore = create<AppState>()(
@@ -35,11 +37,18 @@ const useStore = create<AppState>()(
             worklets: value,
           };
         }),
+      proxyList: [],
+      setProxyList: (value: any[]) =>
+        set((state: AppState) => {
+          return {
+            proxyList: value,
+          };
+        }),
     }),
     {
-      name: 'global',
-    },
-  ),
+      name: "global",
+    }
+  )
 );
 
 export default useStore;
