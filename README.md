@@ -292,6 +292,9 @@ Contributions are welcome! Please feel free to submit a pull request.
 4.  Push to the branch (`git push origin feature/AmazingFeature`).
 5.  Open a Pull Request.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=WyseOS/wyse-browser&type=date&legend=top-left)](https://www.star-history.com/#WyseOS/wyse-browser&type=date&legend=top-left)
 ## License 📄
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
