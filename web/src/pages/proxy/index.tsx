@@ -1,4 +1,3 @@
-import useStore from "@/store/global";
 import {
   alpha,
   Box,
@@ -8,15 +7,17 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
+import useStore from "@/store/global";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ProxyCreate from "./addProxy";
 import List from "./list";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 export default function Index() {
   const { proxyList, profileList, setProxyList } = useStore();
-  const { type } = useParams();
+  const { type = "" } = useParams();
   const [editItem, setEditItem] = useState<any>();
   const navigate = useNavigate();
 
@@ -27,6 +28,7 @@ export default function Index() {
     const data = await result.json();
     if (data.code === 0) {
       setProxyList(data.data.data);
+      navigate("/proxy");
     }
   }, []);
 
@@ -51,13 +53,30 @@ export default function Index() {
   };
 
   return (
-    <div className="p-4 space-y-6 flex space-x-6">
-      <Box className="w-[260px] space-y-4">
+    <div className="p-4 w-[1200px] mx-auto space-y-4">
+      <Box className="">
         <Box className="flex items-center justify-between">
-          <Typography variant="h6">Proxies</Typography>
-          <Link to={`/proxy/create`}>Add new </Link>
+          <div className="flex items-cetner space-x-4">
+            {["create", "update"].includes(type) ? (
+              <Typography variant="h6">
+                <IconButton component={Link} to="/proxy">
+                  <ArrowBackIcon />
+                </IconButton>
+              </Typography>
+            ) : null}
+            <Typography variant="h6">Profiles</Typography>
+          </div>
+          <Button
+            component={Link}
+            to={`/proxy/create`}
+            variant="contained"
+            color="primary"
+            size="small"
+          >
+            Add new
+          </Button>
         </Box>
-        <Box className="space-y-4">
+        {/* <Box className="space-y-4">
           {proxyList.map((item) => {
             return (
               <Box
@@ -90,14 +109,20 @@ export default function Index() {
               </Box>
             );
           })}
-        </Box>
+        </Box> */}
       </Box>
-      <Box className="w-[800px] flex justify-center">
+      <Box className="flex-1 flex justify-center">
         {type === "create" ? <ProxyCreate callback={callbackFetch} /> : null}
         {type === "update" ? (
           <ProxyCreate initalData={editItem} callback={callbackFetch} />
         ) : null}
-        {!type ? <List list={proxyList} /> : null}
+        {!type ? (
+          <List
+            list={proxyList}
+            setEditItem={handleEdit}
+            handleDelete={handleDeleteProxy}
+          />
+        ) : null}
       </Box>
     </div>
   );

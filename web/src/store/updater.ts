@@ -26,7 +26,6 @@ export default function Updater() {
       headers: { "Access-Control-Allow-Origin": "*" },
     });
     const data = await result.json();
-    console.log("data proxy", data);
     if (data.code === 0) {
       setProxyList(data.data.data);
     }
