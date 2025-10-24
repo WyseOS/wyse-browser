@@ -4,6 +4,8 @@ import App from "./App";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Updater from "./store/updater";
 import { BrowserRouter } from "react-router-dom";
+import { ThemeProvider } from "@mui/material";
+import theme from "./theme";
 
 const container = document.querySelector("#root");
 if (container) {
@@ -12,8 +14,10 @@ if (container) {
   root.render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <App />
-        <Updater />
+        <ThemeProvider theme={theme}>
+          <App />
+          <Updater />
+        </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

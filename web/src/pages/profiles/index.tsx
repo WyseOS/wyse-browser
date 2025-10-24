@@ -1,15 +1,21 @@
 import useStore from "@/store/global";
-import { alpha, Box, Chip, IconButton, Typography } from "@mui/material";
+import {
+  alpha,
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  Typography,
+} from "@mui/material";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import CreateProfile from "./addProfile";
 import { useCallback, useState } from "react";
 import List from "./list";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 export default function Index() {
-  const { proxyList, profileList, setProfileList } = useStore();
-  const { type } = useParams();
+  const { profileList, setProfileList } = useStore();
+  const { type = "" } = useParams();
   const [editItem, setEditItem] = useState<any>();
   const navigate = useNavigate();
   const callbackFetch = useCallback(async () => {
@@ -17,9 +23,9 @@ export default function Index() {
       headers: { "Access-Control-Allow-Origin": "*" },
     });
     const data = await result.json();
-    console.log("data proxy", data);
     if (data.code === 0) {
       setProfileList(data.data.data);
+      navigate("/profile");
     }
   }, []);
   const handleEdit = (item: any) => {
@@ -43,13 +49,30 @@ export default function Index() {
   };
 
   return (
-    <div className="p-4 flex space-x-6">
-      <Box className="w-[260px] space-y-6">
+    <div className="p-4 w-[1200px] mx-auto space-y-4">
+      <Box className="">
         <Box className="flex items-center justify-between">
-          <Typography variant="h6">Profiles</Typography>
-          <Link to={`/profile/create`}>Add new </Link>
+          <div className="flex items-cetner space-x-4">
+            {["create", "update"].includes(type) ? (
+              <Typography variant="h6">
+                <IconButton component={Link} to="/profile">
+                  <ArrowBackIcon />
+                </IconButton>
+              </Typography>
+            ) : null}
+            <Typography variant="h6">Profiles</Typography>
+          </div>
+          <Button
+            component={Link}
+            to={`/profile/create`}
+            variant="contained"
+            color="primary"
+            size="small"
+          >
+            Add new
+          </Button>
         </Box>
-        <Box className="space-y-4">
+        {/* <Box className="space-y-4">
           {profileList.map((item) => {
             return (
               <Box
@@ -74,14 +97,20 @@ export default function Index() {
               </Box>
             );
           })}
-        </Box>
+        </Box> */}
       </Box>
-      <Box className="w-[800px] flex justify-center">
+      <Box className="flex justify-center">
         {type === "create" ? <CreateProfile callback={callbackFetch} /> : null}
         {type === "update" ? (
           <CreateProfile initalData={editItem} callback={callbackFetch} />
         ) : null}
-        {!type ? <List data={profileList} /> : null}
+        {!type ? (
+          <List
+            list={profileList}
+            setEditItem={handleEdit}
+            handleDelete={handleDelete}
+          />
+        ) : null}
       </Box>
     </div>
   );

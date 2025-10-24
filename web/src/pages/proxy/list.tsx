@@ -1,11 +1,59 @@
-import { Box } from "@mui/material";
+import { Box, Chip, IconButton, Paper, Typography } from "@mui/material";
+import Table from "@/components/Table";
+import useStore from "@/store/global";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 export default function List(props: any) {
+  const { list, setEditItem, handleDeleteProxy } = props;
+  const { profileList } = useStore();
+
+  const columns = [
+    ...Object.keys(list[0]).map((item) => {
+      return {
+        label: item.replace("_", " "),
+        key: item,
+        width: "20%",
+        align: "left",
+        render: (row: any) => {
+          return row[item];
+        },
+      };
+    }),
+    {
+      label: "Operation",
+      key: "operation",
+      align: "right",
+      width: "20%",
+      render: (row: any) => {
+        return (
+          <Typography className="flex items-center space-x-1 justify-end">
+            <Chip
+              label={
+                profileList?.filter(
+                  (profile) => profile.proxy === `${row.host}:${row.port}`
+                ).length
+              }
+              size="small"
+            />
+            <IconButton size="small" onClick={() => setEditItem(row)}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => handleDeleteProxy(row.proxy_id)}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Typography>
+        );
+      },
+    },
+  ];
+
   return (
-    <Box>
-      {props.list.map((item: any) => {
-        return <div>{item.proxy_name}</div>;
-      })}
-    </Box>
+    <Paper className="w-full">
+      <Table data={list} columns={columns} />
+    </Paper>
   );
 }
