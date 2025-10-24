@@ -19,6 +19,7 @@ scripts/graph.pdf
 /dist
 /node_modules
 /build
+/output
 
 # Logs
 logs
