@@ -13,7 +13,7 @@
     "lodash": "^4.17.21",
     "minimist": "^1.2.8",
     "papaparse": "^5.4.1",
-    "playwright": "1.54.2",
+    "playwright": "1.55.1",
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "uuid": "^10.0.0",
