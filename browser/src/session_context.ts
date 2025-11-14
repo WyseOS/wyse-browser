@@ -21,6 +21,7 @@ export class SessionContext {
         }>;
     }>;
     isSaveVideo: boolean;
+    proxy: { server: string, username: string, password: string };
     wsPort: number;
     extensionNames: string[];
 
@@ -29,6 +30,7 @@ export class SessionContext {
         this.cookies = [];
         this.origins = [];
         this.isSaveVideo = false;
+        this.proxy = { server: '', username: '', password: '' };
         this.wsPort = 0;
         this.extensionNames = [];
     }
@@ -43,6 +45,10 @@ export class SessionContext {
 
             if (json.session_context?.is_save_video !== undefined) {
                 this.isSaveVideo = json.session_context.is_save_video;
+            }
+
+            if (json.session_context?.proxy !== undefined) {
+                this.proxy = json.session_context.proxy;
             }
 
             if (json.session_context?.extension_names !== undefined) {
@@ -113,7 +119,8 @@ export class SessionContext {
             "session_context": {
                 "cookies": [],
                 "origins": [],
-                "is_save_video": false,
+                "is_save_video": false, 
+                "proxy": { "server": "", "username": "", "password": "" },
                 "ws_port": 0,
                 "extension_names": []
             }
