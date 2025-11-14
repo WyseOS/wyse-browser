@@ -290,6 +290,3 @@ http://127.0.0.1:13100
 4.  推送到分支 (`git push origin feature/AmazingFeature`)。
 5.  打开拉取请求。
 
-## 许可证 📄
-
-本项目采用 MIT 许可证。有关详细信息，请参阅 [LICENSE](LICENSE) 文件。 
