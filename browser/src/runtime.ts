@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { SessionContext } from './session_context';
 import { v4 as uuidv4 } from 'uuid';
+import { SendAlarm } from './utils/alarm';
 
 @Injectable()
 export class Runtime {
@@ -23,6 +24,7 @@ export class Runtime {
     private latestWsPort: number = DefaultBasedWsPort;
     private page_devtool_frontend_host: string;
     private page_devtool_ws_host: string;
+    private proxy: { server: string, username: string, password: string };
 
     private actionInstance: BrowserAction = new BrowserAction();
 
@@ -43,10 +45,11 @@ export class Runtime {
 
     constructor() {
         this.logger = new Logger(Runtime.name);
-        let engineConfig = JSON.parse(fs.readFileSync(path.resolve('..', "configs/browser", "config.json"), "utf8"));
+        let engineConfig = JSON.parse(fs.readFileSync(path.resolve('..', "configs/engine", "config.json"), "utf8"));
         this.headless = engineConfig.browser.headless;
         this.page_devtool_frontend_host = engineConfig.browser.page_devtool_frontend_host;
         this.page_devtool_ws_host = engineConfig.browser.page_devtool_ws_host;
+        this.proxy = engineConfig.browser.proxy;
     }
 
     /**
@@ -79,6 +82,7 @@ export class Runtime {
         const session = this.sessions.get(sessionId);
         if (!session) {
             this.logger.error(`addFlow: Session ${sessionId} not found`);
+            await SendAlarm.sendTextMessage('Session Not Found', `addFlow, SessionID ${sessionId} not found`);
             throw new Error(`addFlow: Session ${sessionId} not found`);
         }
 
@@ -97,6 +101,7 @@ export class Runtime {
             this.flows.delete(flowId);
         } else {
             this.logger.error(`Flow ${flowId} not found`);
+            await SendAlarm.sendTextMessage('Flow Not Found', `Flow ${flowId} not found`);
             throw new Error(`Flow ${flowId} not found`);
         }
     }
@@ -139,6 +144,7 @@ export class Runtime {
         width: number = DefaultWidth,
         height: number = DefaultHeight): Promise<string> {
 
+        this.logger.warn(`createSession: headless is ${this.headless}`);
         if (!session_id) {
             // Generate new UUID if session_id is empty
             session_id = uuidv4();
@@ -147,17 +153,15 @@ export class Runtime {
             throw new Error(`createSession: Session ${session_id} already exists`);
         }
 
-        // 检查会话总数限制
         if (this.sessions.size >= this.maxTotalSessions) {
             this.logger.error(`createSession: Maximum number of sessions reached (${this.maxTotalSessions}). Current sessions: ${this.sessions.size}`);
+            await SendAlarm.sendTextMessage('Session Limit Reached', `Cannot create session ${session_id}. Maximum sessions limit (${this.maxTotalSessions}) reached. Current sessions: ${this.sessions.size}`);
             throw new Error(`Maximum number of sessions reached (${this.maxTotalSessions}). Current sessions: ${this.sessions.size}`);
         }
 
-        // 检查并发限制
         if (this.currentInitializingCount >= this.maxConcurrentInitializations) {
             this.logger.log(`Session creation queued due to concurrent limit. Session: ${session_id}, Queue length: ${this.initializationQueue.length + 1}`);
 
-            // 将会话创建请求加入队列
             return new Promise<string>((resolve, reject) => {
                 this.initializationQueue.push({
                     resolve,
@@ -186,22 +190,17 @@ export class Runtime {
         try {
             context.wsPort = this.getNextWsPort();
             let session = new Session();
-            let id = await session.initialize(session_id, context, timeout, width, height, this.headless, this.page_devtool_frontend_host, this.page_devtool_ws_host);
+            let id = await session.initialize(session_id, context, timeout, width, height, this.headless, this.page_devtool_frontend_host, this.page_devtool_ws_host, this.proxy);
 
-            // 确保session初始化完成后再设置cookie
             try {
                 await session.waitForInitialization();
 
-                // 如果有cookie，确保在browserContext准备好后设置
                 if (context.cookies && context.cookies.length > 0) {
                     this.logger.log(`Setting cookies for session ${id}`);
                     await session.browserContext.addCookies(context.cookies.map(cookie => ({
                         ...cookie,
-                        // 确保domain字段正确设置
                         domain: cookie.domain || '.x.com',
-                        // 确保path字段存在
                         path: cookie.path || '/',
-                        // 确保expires字段为数字
                         expires: typeof cookie.expires === 'number' ? cookie.expires : -1
                     })));
                 }
@@ -210,8 +209,8 @@ export class Runtime {
                 this.logger.log(`Session initialization completed successfully, id: ${id}`);
             } catch (error) {
                 this.logger.error(`Session initialization failed, id: ${id}, error: ${error.message}`);
+                await SendAlarm.sendTextMessage('Session initialization failed, id: ' + id, error.message);
 
-                // 从sessions中移除失败的会话
                 this.sessions.delete(id);
                 this.wsPorts.delete(context.wsPort);
                 throw error;
@@ -220,9 +219,8 @@ export class Runtime {
             return id;
         } finally {
             this.currentInitializingCount--;
-            this.logger.log(`Session creation finished. Current initializing: ${this.currentInitializingCount}`);
+            this.logger.log(`Session creation finished. Current initializing count: ${this.currentInitializingCount}`);
 
-            // 处理队列中的下一个请求
             this.processInitializationQueue();
         }
     }
@@ -254,7 +252,7 @@ export class Runtime {
             let sessionContext = SessionContext.Default();
             sessionContext.wsPort = this.getNextWsPort();
             let session_id = uuidv4();
-            let id = await session.initialize(session_id, sessionContext, DefaultTimeout, DefaultWidth, DefaultHeight, this.headless, this.page_devtool_frontend_host, this.page_devtool_ws_host);
+            let id = await session.initialize(session_id, sessionContext, DefaultTimeout, DefaultWidth, DefaultHeight, this.headless, this.page_devtool_frontend_host, this.page_devtool_ws_host, this.proxy);
             this.sessions.set(id, session);
             return session;
         }
