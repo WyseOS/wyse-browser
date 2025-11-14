@@ -6,6 +6,7 @@
     "dist/"
   ],
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^10.4.13",
     "@nestjs/platform-express": "^10.4.13",
@@ -31,7 +32,7 @@
     "rxjs": "^7.8.1",
     "turndown": "^7.2.0",
     "uuid": "^10.0.0",
-    "zod": "^3.24.2",
+    "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
@@ -73,7 +74,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+
+    "start:mcp": "pnpm copy-assets && nest start --watch --entryFile browser/src/mcp/server",
+    "inspector": "npx @modelcontextprotocol/inspector pnpm run start:mcp"
   },
   "packageManager": "pnpm@8.7.5+sha1.735d4d0e6fc66c4d2d64b269b08e5995b19230ca"
 }
