@@ -3,7 +3,7 @@
 [English](README.md) [简体中文](README_zh-CN.md)
 
 [![构建状态](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/wyse-work/wyse-browser)
-[![许可证：MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![许可证](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![欢迎贡献](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 Wyse Browser 是一个功能强大的多进程运行时引擎，专为在浏览器环境中执行自动化流程而设计。它提供了一个强大的平台，通过全面的 REST API，用于创建、管理和执行复杂的自动化工作流。
