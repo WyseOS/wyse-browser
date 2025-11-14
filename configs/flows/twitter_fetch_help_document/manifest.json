@@ -1,14 +1,9 @@
-# Wyse Flows
-
-## Base Definition
-
-```JSON
 {
-    "name": "",
+    "name": "twitter_fetch_help_document",
     "type": "flow",
-    "description": "",
+    "description": "fetch help document",
     "version": "0.1.0",
-    "webpage_url": "",
+    "webpage_url": "https://help.x.com/en/using-x",
     "nodes": [
         {
             "name": "FlowStart",
@@ -16,10 +11,12 @@
             "version": "0.1.0"
         },
         {
-            "name": "",
+            "name": "Twitter",
             "type": "worklet",
             "version": "0.1.0",
-            "properties": {}
+            "properties": {
+                "twitter_auth_token": "$TwitterAuthToken"
+            }
         },
         {
             "name": "FlowEnd",
@@ -29,23 +26,23 @@
     ],
     "connections": [
         {
-            "name": "start the flow, send a tweet",
+            "name": "start the flow, fetch help document",
             "src": {
                 "worklet": "FlowStart",
-                "action": ""
+                "action": "action_flow_start"
             },
             "dest": [
                 {
                     "worklet": "Twitter",
-                    "action": ""
+                    "action": "action_get_help_document"
                 }
             ]
         },
         {
-            "name": "flow ends",
+            "name": "fetch help document",
             "src": {
-                "worklet": "",
-                "action": ""
+                "worklet": "Twitter",
+                "action": "action_get_help_document"
             },
             "dest": [
                 {
@@ -55,10 +52,8 @@
             ]
         }
     ],
-    "properties": {},
+    "properties": {
+        "TwitterAuthToken": "$TwitterAuthToken"
+    },
     "parameters": []
 }
-```
-
-| Category | Name | Description | Manifest |
-|----------|------|-------------|-----------|

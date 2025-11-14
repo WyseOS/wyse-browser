@@ -6,6 +6,7 @@ import { OSSUpload } from './utils/oss';
 import { GetDateYYYYMMDD } from './constants';
 import { Logger } from '@nestjs/common';
 import path from 'path';
+import { SendAlarm } from './utils/alarm';
 import { getChromeExecutablePath } from "./utils/browser";
 import { FingerprintInjector } from "fingerprint-injector";
 import { BrowserFingerprintWithHeaders, FingerprintGenerator } from "fingerprint-generator";
@@ -58,6 +59,7 @@ export class Session {
   solveCaptcha: boolean;
   private logger: Logger;
   isSaveVideo: boolean;
+  proxy: { server: string, username: string, password: string };
   lastActionTimestamp: number = 0;
   wsPort: number;
   private browser: Browser = null;
@@ -84,7 +86,7 @@ export class Session {
     }
   }
 
-  async initialize(session_id: string, context: SessionContext, timeout: number, width: number, height: number, headless: boolean, page_devtool_frontend_host: string, page_devtool_ws_host: string): Promise<string> {
+  async initialize(session_id: string, context: SessionContext, timeout: number, width: number, height: number, headless: boolean, page_devtool_frontend_host: string, page_devtool_ws_host: string, proxy: { server: string, username: string, password: string }): Promise<string> {
     this.logger = new Logger(Session.name);
     this.isInitialized = false;
     this.chromeExecPath = getChromeExecutablePath();
@@ -99,6 +101,10 @@ export class Session {
     this.solveCaptcha = DefaultSolveCaptcha;
     this.page_devtool_frontend_host = page_devtool_frontend_host;
     this.page_devtool_ws_host = page_devtool_ws_host;
+    this.proxy = context.proxy;
+    if (this.proxy === undefined || this.proxy.server === undefined || this.proxy.server === '') {
+      this.proxy = proxy;
+    }
 
     if (session_id === null || session_id === undefined || session_id.length === 0) {
       this.id = uuidv4();
@@ -112,8 +118,26 @@ export class Session {
       '--disable-infobars',
       '--disable-dev-shm-usage',
       '--disable-setuid-sandbox',
+      '--disable-gpu',
+      '--disable-gpu-sandbox',
+      '--disable-gpu-process-crash-limit',
       '--disable-software-rasterizer',
       '--use-angle=disabled',
+      '--renderer-process-limit=3',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-ipc-flooding-protection',
+      '--disable-client-side-phishing-detection',
+      '--disable-component-update',
+      '--disable-default-apps',
+      '--disable-domain-reliability',
+      '--disable-sync',
+      '--disable-features=TranslateUI',
+      '--disable-back-forward-cache',
+      '--mute-audio',
+      '--silent-debugger-extension-api',
+      '--disable-logging',
+      '--no-first-run',
       '--disable-blink-features=AutomationControlled,PasswordManager,TranslateUI',
       '--lang=en-US',
       '--remote-allow-origins=*',
@@ -121,6 +145,11 @@ export class Session {
       `--remote-debugging-port=${this.wsPort}`,
       `--timezone=${DefaultTimezone}`
     ];
+
+
+    if (headless) {
+      browserArgs.push('--headless=new');
+    }
 
     let launchOptions = {
       executablePath: this.chromeExecPath,
@@ -135,6 +164,14 @@ export class Session {
         fs.mkdirSync(path.resolve('./output/videos'), { recursive: true });
       }
       launchOptions['recordVideo'] = { dir: path.resolve('./output/videos/' + this.id) }
+    }
+
+    if (this.proxy !== undefined && this.proxy.server !== undefined && this.proxy.server !== '') {
+      if (this.proxy.username !== '' && this.proxy.password !== '') {
+        launchOptions['proxy'] = { server: this.proxy.server, username: this.proxy.username, password: this.proxy.password };
+      } else {
+        launchOptions['proxy'] = { server: this.proxy.server };
+      }
     }
 
     this.asyncInitPromise = this.finishAsyncSetupWithTimeout(context, browserArgs, launchOptions)
@@ -308,6 +345,7 @@ export class Session {
               await pages[i].close();
             } catch (error) {
               this.logger.warn(`Failed to close page ${i}: ${error.message}`);
+              await SendAlarm.sendTextMessage('Failed to close page', `Failed to close page ${i}: ${error.message}`);
             }
           }
         }
@@ -343,6 +381,7 @@ export class Session {
     }
     catch (error) {
       this.logger.error(`Failed to finish async setup, error: ${error.message}, browser id: ${this.id}`);
+      await SendAlarm.sendTextMessage('Session initialization failed', `SessionID ${this.id} initialization failed, error: ${error.message}`);
       throw error;
     }
   }
@@ -401,6 +440,7 @@ export class Session {
       this.isInitialized = false;
     } catch (error) {
       this.logger.error(`Error during failed initialization cleanup: ${error.message}`);
+      await SendAlarm.sendTextMessage('Session initialization failed', `SessionID ${this.id} initialization failed, error: ${error.message}`);
     }
   }
 
@@ -473,19 +513,72 @@ export class Session {
       if (!isSpecialPage) {
         await this.ensurePageReadyForScreenshot();
       }
-
       const buffer = await this.page.screenshot({
         timeout: 10000,
         fullPage: false
       });
+      return buffer.toString('base64');
+    } catch (error) {
+      // 如果常规截图失败，尝试紧急截图
+      this.logger.warn(`Regular screenshot failed, attempting emergency screenshot: ${error.message}`);
+      try {
+        return await this.emergencyScreenshot();
+      } catch (emergencyError) {
+        this.logger.error(`All screenshot attempts failed for browser ${this.id}, error: ${error.message}`);
+        await SendAlarm.sendTextMessage(
+          'Screenshot failed',
+          `Browser: ${this.id}, URL: ${currentUrl}, Error: ${error.message}`
+        );
+        throw new Error(`Screenshot failed: ${error.message}`);
+      }
+    }
+  }
+  /**
+   * Emergency screenshot with minimal waiting
+   */
+  private async emergencyScreenshot(): Promise<string> {
+    try {
+      // 紧急截图：不等待任何加载状态，直接截图
+      const buffer = await this.page.screenshot({
+        timeout: 3000, // 很短的超时
+        fullPage: false,
+        animations: 'disabled',
+        caret: 'hide'
+      });
 
       return buffer.toString('base64');
     } catch (error) {
-      this.logger.error(`Screenshot failed for browser ${this.id}, error: ${error.message}`);
-      throw new Error(`Screenshot failed: ${error.message}`);
+      // 最后的尝试：使用 CDP 直接截图
+      return await this.cdpScreenshot();
     }
   }
 
+  /**
+   * Use Chrome DevTools Protocol for screenshot as last resort
+   */
+  private async cdpScreenshot(): Promise<string> {
+    try {
+      const client = await this.page.context().newCDPSession(this.page);
+
+      // 使用 CDP 截图
+      const { data } = await client.send('Page.captureScreenshot', {
+        format: 'png',
+        quality: 80,
+        clip: {
+          x: 0,
+          y: 0,
+          width: this.width,
+          height: this.height,
+          scale: 1
+        }
+      });
+
+      await client.detach();
+      return data;
+    } catch (error) {
+      throw new Error(`CDP screenshot also failed: ${error.message}`);
+    }
+  }
   /**
    * Check if the given URL is a special browser page that doesn't need load state checking
    * @param url The URL to check
@@ -527,22 +620,43 @@ export class Session {
     if (!this.page) {
       throw new Error('Page is null or undefined');
     }
-
-    const pageReadyTimeout = Math.min(this.timeout, 15000); // Max 15 seconds for page ready check
-
+    const shortTimeout = 5000; // 缩短初始等待时间
+    const fallbackTimeout = 3000; // 备用等待时间
     try {
-      // Wait for page to load completely with a reasonable timeout
-      await this.page.waitForLoadState('load', { timeout: pageReadyTimeout });
+      // 首先尝试等待 domcontentloaded，这比 load 更快
+      await this.page.waitForLoadState('domcontentloaded', { timeout: shortTimeout });
+
+      // 然后尝试等待 networkidle，但时间很短
+      await this.page.waitForLoadState('networkidle', { timeout: fallbackTimeout });
     } catch (error) {
-      this.logger.warn(`Page load timeout, attempting to stop loading: ${error.message}`);
+      this.logger.warn(`Fast page load check failed, trying load state: ${error.message}`);
+
       try {
-        await this.page.evaluate("window.stop()");
-        await this.page.waitForTimeout(1000);
-      } catch (stopError) {
-        this.logger.warn(`Failed to stop page loading: ${stopError.message}`);
+        // 如果快速检查失败，尝试等待基本加载
+        await this.page.waitForLoadState('load', { timeout: shortTimeout });
+      } catch (loadError) {
+        this.logger.warn(`Page load timeout, attempting to stop loading: ${loadError.message}`);
+        // 停止页面加载
+        try {
+          await this.page.evaluate(async () => {
+            // 停止所有加载
+            await this.page.evaluate("window.stop()");
+            await this.page.waitForTimeout(1000)
+            // 移除可能导致持续加载的元素
+            const problematicElements = document.querySelectorAll('iframe, embed, object');
+            problematicElements.forEach(el => {
+              try {
+                el.remove();
+              } catch (e) {
+                // 忽略移除错误
+              }
+            });
+          });
+        } catch (stopError) {
+          this.logger.warn(`Failed to stop page loading: ${stopError.message}`);
+        }
       }
     }
-
     // Check and fix viewport size if needed
     try {
       const viewport = await this.page.viewportSize();
@@ -565,10 +679,6 @@ export class Session {
   private async getDebuggerUrl(index: number, link: string): Promise<SessionPageDebugerUrl> {
     if (!this.isInitialized && this.asyncInitPromise) {
       await this.asyncInitPromise;
-    }
-
-    if (!this.wsPort || this.wsPort <= 0) {
-      return new SessionPageDebugerUrl('', '', '', '');
     }
 
     try {
@@ -601,15 +711,32 @@ export class Session {
         }
       }
     } catch (error) {
-      const msg = (error && (error as any).message) ? (error as any).message : String(error);
-      this.logger.warn(`Failed to parse debugger url (wsPort=${this.wsPort}): ${msg}`);
+      this.logger.error(`Failed to parse debugger url: ${error.message}`);
+      SendAlarm.sendTextMessage("parse debugger url failed", error.message);
     }
 
     return new SessionPageDebugerUrl('', '', '', '');
   }
 
   async dispose(): Promise<SessionPage[]> {
+    const entryStack = (() => {
+      try {
+        const stack = new Error().stack;
+        if (!stack) {
+          return 'stack unavailable';
+        }
+        const parts = stack.split('\n').slice(2, 6);
+        return parts.join(' | ');
+      } catch (_) {
+        return 'stack unavailable';
+      }
+    })();
+    const elapsedSinceCreateMs = this.createdAt ? (Date.now() - this.createdAt.getTime()) : -1;
+    this.logger.log(`dispose() called. id: ${this.id}, isInitialized: ${this.isInitialized}, hasInitPromise: ${!!this.asyncInitPromise}, isInitializationCancelled: ${this.isInitializationCancelled}, createdAt: ${this.createdAt?.toISOString()}, elapsedSinceCreateMs: ${elapsedSinceCreateMs}, lastActionTs: ${this.lastActionTimestamp}, wsPort: ${this.wsPort}`);
+    this.logger.log(`dispose() call stack (trimmed): ${entryStack}`);
+
     if (!this.isInitialized && !this.asyncInitPromise) {
+      this.logger.warn(`dispose() invoked while session was never initialized. id: ${this.id}`);
       return [];
     }
 
@@ -646,6 +773,8 @@ export class Session {
 
     let today = GetDateYYYYMMDD();
 
+    this.logger.log(`Disposing ${pages.length} page(s) for session ${this.id}`);
+
     if (this.cdpSession) {
       try {
         await this.cdpSession.detach();
@@ -658,6 +787,7 @@ export class Session {
 
     for (let i = 0; i < pages.length; i++) {
       const pageUrl = pages[i].url();
+      this.logger.log(`Closing page[${i}] url=${pageUrl}`);
       let pageDebuger = await this.getDebuggerUrl(i, pageUrl);
       let sessionPage = new SessionPage(pageUrl, "", pageDebuger.ws_debugger_url, pageDebuger.front_debugger_url, pageDebuger.page_id, `localhost:${this.wsPort}`);
       if (this.isSaveVideo) {
@@ -697,12 +827,14 @@ export class Session {
           let stats = await fs.promises.stat(videoPath);
           if (stats.size === 0) {
             this.logger.error(`Video is empty when upload: ${videoPath}`);
+            await SendAlarm.sendTextMessage('OSS Upload Failed', `${filename}\nError: Video is empty when upload: ${videoPath}`);
             continue;
           }
 
           browserPages[i].video_url = await OSSUpload.upload(filename, videoPath);
         } catch (error) {
           this.logger.warn(`Error processing video file ${videoPath}: ${error.message}`);
+          await SendAlarm.sendTextMessage('OSS Upload Failed', `OSS Upload Failed, error: ${error.message}`);
         }
       }
     }
@@ -710,11 +842,17 @@ export class Session {
     if (this.sessionContext.needExtension()) {
       try {
         const userDataPath = path.resolve("./user_data/" + this.id);
+        this.logger.log(`Persistent context detected. userDataPath=${userDataPath}`);
         if (fs.existsSync(userDataPath)) {
+          this.logger.log(`Deleting persistent user data directory: ${userDataPath}`);
           fs.rmSync(userDataPath, { recursive: true, force: true });
+          this.logger.log(`Deleted persistent user data directory: ${userDataPath}`);
+        } else {
+          this.logger.log(`Persistent user data directory not found (nothing to delete): ${userDataPath}`);
         }
       } catch (error) {
         this.logger.warn(`Error removing user data directory: ${error.message}`);
+        await SendAlarm.sendTextMessage('Error removing user data directory', `Error removing user data directory: ${error.message}`);
       }
     }
 
