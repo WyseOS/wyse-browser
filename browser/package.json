@@ -1,7 +1,7 @@
 {
   "name": "wyse-browser",
   "description": "wyse browser and runtime",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "files": [
     "dist/"
   ],
@@ -75,7 +75,6 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-
     "start:mcp": "pnpm copy-assets && nest start --watch --entryFile browser/src/mcp/server",
     "inspector": "npx @modelcontextprotocol/inspector pnpm run start:mcp"
   },
