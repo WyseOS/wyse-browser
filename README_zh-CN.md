@@ -225,13 +225,18 @@ http://127.0.0.1:13100
 
 | Method | Endpoint | Description | Parameters |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/sessions/:sessionId/files` | 上传一个或多个文件到会话，并检查会话存储限制。 | **路径**: `sessionId` (字符串, 必填)<br>**请求体**: `filePath` (字符串, 可选) - 文件的目标路径，默认为原始文件名。 |
-| `GET` | `/api/sessions/:sessionId/files` | 列出特定会话中存储的所有文件。 | **路径**: `sessionId` (字符串, 必填) |
-| `GET` | `/api/sessions/:sessionId/files/*` | 从会话下载特定文件。 | **路径**:<br>- `sessionId` (字符串, 必填)<br>- `filePath` (字符串, 必填) |
-| `HEAD` | `/api/sessions/:sessionId/files/*` | 检索会话中特定文件的元数据（标头），而不下载内容。 | **路径**:<br>- `sessionId` (字符串, 必填)<br>- `filePath` (字符串, 必填) |
-| `GET` | `/api/sessions/:sessionId/files.zip` | 将会话中的所有文件下载为 ZIP 存档。 | **路径**: `sessionId` (字符串, 必填) |
-| `DELETE` | `/api/sessions/:sessionId/files/*` | 从会话中删除特定文件。 | **路径**:<br>- `sessionId` (字符串, 必填)<br>- `filePath` (字符串, 必填) |
-| `DELETE` | `/api/sessions/:sessionId/files` | 删除与特定会话关联的所有文件。 | **路径**: `sessionId` (字符串, 必填) |
+| `POST` | `/api/sessions/:sessionId/files` | 上传一个或多个文件到会话的OSS存储空间，并检查会话存储限制。 | **路径**: `sessionId` (字符串, 必填)<br>**请求体**: `filePath` (字符串, 可选) - 文件的目标路径，默认为原始文件名。 |
+| `GET` | `/api/sessions/:sessionId/files` | 列出特定会话中存储在OSS的所有文件，包括浏览器自动下载的文件。 | **路径**: `sessionId` (字符串, 必填) |
+| `GET` | `/api/sessions/:sessionId/files/*` | 从OSS下载会话的特定文件。 | **路径**:<br>- `sessionId` (字符串, 必填)<br>- `filePath` (字符串, 必填) |
+| `HEAD` | `/api/sessions/:sessionId/files/*` | 检索OSS中特定文件的元数据（标头），而不下载内容。 | **路径**:<br>- `sessionId` (字符串, 必填)<br>- `filePath` (字符串, 必填) |
+| `DELETE` | `/api/sessions/:sessionId/files/*` | 从OSS中删除会话的特定文件。 | **路径**:<br>- `sessionId` (字符串, 必填)<br>- `filePath` (字符串, 必填) |
+| `DELETE` | `/api/sessions/:sessionId/files` | 删除与特定会话关联的OSS中的所有文件。 | **路径**: `sessionId` (字符串, 必填) |
+
+**文件存储说明**：
+- 浏览器下载的文件会自动流式上传到阿里云OSS，无本地存储
+- 所有文件通过OSS路径前缀实现会话级别隔离 (`sessions/{sessionId}/`)
+- 支持通过CDN公网地址直接访问文件
+- 文件名采用UUID格式，确保唯一性和安全性
 
 ## 操作空间 🚀
 

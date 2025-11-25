@@ -1,5 +1,5 @@
 import { Browser, BrowserContext, chromium, Page, CDPSession, BrowserContextOptions } from 'playwright';
-import { DefaultSolveCaptcha, ExtensionPaths, DefaultTimezone, GetDefaultFingerprint } from './constants';
+import { DefaultSolveCaptcha, ExtensionPaths, DefaultTimezone, GetDefaultFingerprint, FILE_CONSTANTS } from './constants';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import { OSSUpload } from './utils/oss';
@@ -13,6 +13,7 @@ import { BrowserFingerprintWithHeaders, FingerprintGenerator } from "fingerprint
 import { newInjectedContext } from "fingerprint-injector";
 import axios from 'axios';
 import { SessionContext } from './session_context';
+import { Readable } from 'stream';
 
 export class SessionPage {
   url: string;
@@ -75,6 +76,12 @@ export class Session {
   private isInitializationCancelled: boolean = false;
   private timeoutHandle: NodeJS.Timeout = null;
 
+  private activeDownloads: Map<string, {
+    suggestedFilename: string;
+    url: string;
+    startTime: Date;
+    promise: Promise<void>;
+  }> = new Map();
 
   constructor() {
     this.lastActionTimestamp = Math.floor(Date.now() / 1000);
@@ -334,6 +341,9 @@ export class Session {
       if (this.isInitializationCancelled) {
         throw new Error('Initialization was cancelled');
       }
+
+      // Setup download handler
+      this.setupDownloadHandler();
 
       this.logger.log(`Session ${this.id}: Starting page initialization`);
       let pages = await this.browserContext.pages();
@@ -718,7 +728,215 @@ export class Session {
     return new SessionPageDebugerUrl('', '', '', '');
   }
 
+  private setupDownloadHandler(): void {
+    this.browserContext.on('page', (page) => {
+      this.setupPageDownloadHandler(page);
+    });
+
+    const pages = this.browserContext.pages();
+    pages.forEach(page => this.setupPageDownloadHandler(page));
+  }
+
+  private setupPageDownloadHandler(page: Page): void {
+    page.on('download', (download) => {
+      this.handleDownloadAsync(download).catch(error => {
+        this.logger.error(`Unhandled download error: ${error.message}`);
+      });
+    });
+  }
+
+  private async handleDownloadAsync(download: any): Promise<void> {
+    const suggestedFilename = download.suggestedFilename();
+    const url = download.url();
+    const downloadId = `${Date.now()}-${suggestedFilename}`;
+
+    this.logger.log(`Download initiated: ${suggestedFilename} from ${url}`);
+
+    const downloadPromise = this.processDownload(download, suggestedFilename, url, downloadId);
+
+    this.activeDownloads.set(downloadId, {
+      suggestedFilename,
+      url,
+      startTime: new Date(),
+      promise: downloadPromise
+    });
+
+    await downloadPromise;
+  }
+
+  private async processDownload(
+    download: any,
+    suggestedFilename: string,
+    url: string,
+    downloadId: string
+  ): Promise<void> {
+    const startTime = Date.now();
+    let readStream: Readable | null = null;
+
+    try {
+      const fileExtension = path.extname(suggestedFilename).toLowerCase();
+      if (!(FILE_CONSTANTS.ALLOWED_DOWNLOAD_EXTENSIONS as readonly string[]).includes(fileExtension)) {
+        await download.cancel();
+
+        this.logger.warn(`File type not allowed: ${fileExtension}`);
+        await SendAlarm.sendTextMessage(
+          'File Type Not Allowed',
+          `Session: ${this.id}\nFilename: ${suggestedFilename}\nExtension: ${fileExtension}`
+        ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+
+        throw new Error(`File type "${fileExtension}" is not allowed`);
+      }
+
+      const uniqueFilename = `${uuidv4()}${fileExtension}`;
+      const objectPath = OSSUpload.getObjectPath(this.id, uniqueFilename);
+
+      readStream = await download.createReadStream();
+
+      if (!readStream) {
+        throw new Error('Failed to create read stream from download');
+      }
+
+      const uploadResult = await OSSUpload.putStream(
+        objectPath,
+        readStream,
+        this.getContentType(fileExtension)
+      );
+
+      const fileMetadata = await OSSUpload.head(objectPath);
+      const fileSize = parseInt(fileMetadata.res.headers['content-length'] || '0', 10);
+
+      if (fileSize > FILE_CONSTANTS.MAX_DOWNLOAD_FILE_SIZE) {
+        await OSSUpload.deleteFile(objectPath);
+
+        const maxSizeMB = (FILE_CONSTANTS.MAX_DOWNLOAD_FILE_SIZE / (1024 * 1024)).toFixed(0);
+        const actualSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+
+        this.logger.warn(`File size exceeded: ${actualSizeMB}MB > ${maxSizeMB}MB`);
+        await SendAlarm.sendTextMessage(
+          'File Size Exceeded',
+          `Session: ${this.id}\nFilename: ${uniqueFilename}\nSize: ${actualSizeMB}MB\nLimit: ${maxSizeMB}MB`
+        ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+
+        throw new Error(`File size ${actualSizeMB}MB exceeds maximum ${maxSizeMB}MB`);
+      }
+
+      const currentSessionSize = await OSSUpload.getSessionStorageSize(this.id);
+
+      if (currentSessionSize > FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION) {
+        await OSSUpload.deleteFile(objectPath);
+
+        const maxSessionSizeMB = (FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION / (1024 * 1024)).toFixed(0);
+        const currentSizeMB = (currentSessionSize / (1024 * 1024)).toFixed(2);
+
+        this.logger.warn(`Session storage exceeded: ${currentSizeMB}MB > ${maxSessionSizeMB}MB`);
+        await SendAlarm.sendTextMessage(
+          'Session Storage Exceeded',
+          `Session: ${this.id}\nCurrent: ${currentSizeMB}MB\nLimit: ${maxSessionSizeMB}MB`
+        ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+
+        throw new Error(`Session storage limit exceeded: ${currentSizeMB}MB > ${maxSessionSizeMB}MB`);
+      }
+
+      const duration = Date.now() - startTime;
+      const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+      const fileKB = (fileSize / 1024).toFixed(2);
+      const sizeDisplay = fileSize >= 1024 * 1024 ? `${fileSizeMB}MB` : `${fileKB}KB`;
+      const publicUrl = OSSUpload.getPublicUrl(objectPath);
+
+      this.logger.log(
+        `Download completed: ${uniqueFilename} (original: ${suggestedFilename}), ` +
+        `size: ${sizeDisplay}, duration: ${duration}ms, url: ${publicUrl}`
+      );
+
+      this.updateActionTimestamp();
+
+    } catch (error) {
+      const errorMessage = error.message || String(error);
+
+      this.logger.error(`Download failed: ${suggestedFilename}, error: ${errorMessage}`);
+
+      if (errorMessage.includes('OSS')) {
+        await SendAlarm.sendTextMessage(
+          'OSS Upload Failed',
+          `Session: ${this.id}\nFilename: ${suggestedFilename}\nError: ${errorMessage}`
+        ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+      } else if (!errorMessage.includes('not allowed')) {
+        await SendAlarm.sendTextMessage(
+          'Download Failed',
+          `Session: ${this.id}\nFilename: ${suggestedFilename}\nURL: ${url}\nError: ${errorMessage}`
+        ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+      }
+    } finally {
+      if (readStream && !readStream.destroyed) {
+        readStream.destroy();
+      }
+      this.activeDownloads.delete(downloadId);
+    }
+  }
+
+  private getContentType(extension: string): string {
+    const mimeTypes: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.txt': 'text/plain',
+      '.md': 'text/markdown',
+      '.csv': 'text/csv',
+      '.json': 'application/json',
+      '.xml': 'application/xml',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+    };
+
+    return mimeTypes[extension.toLowerCase()] || 'application/octet-stream';
+  }
+
+  public hasActiveDownloads(): boolean {
+    return this.activeDownloads.size > 0;
+  }
+
+  public getActiveDownloadCount(): number {
+    return this.activeDownloads.size;
+  }
+
+  public getActiveDownloadInfo(): Array<{
+    filename: string;
+    url: string;
+    startTime: Date;
+    duration: number;
+  }> {
+    const now = Date.now();
+    return Array.from(this.activeDownloads.values()).map(d => ({
+      filename: d.suggestedFilename,
+      url: d.url,
+      startTime: d.startTime,
+      duration: now - d.startTime.getTime(),
+    }));
+  }
+
   async dispose(): Promise<SessionPage[]> {
+    // Cancel active downloads
+    if (this.activeDownloads.size > 0) {
+      this.logger.log(`Cancelling ${this.activeDownloads.size} active downloads`);
+
+      const pendingDownloads = Array.from(this.activeDownloads.values()).map(d => ({
+        filename: d.suggestedFilename,
+        url: d.url,
+        startTime: d.startTime,
+      }));
+
+      this.logger.warn(`Session closing with pending downloads: ${JSON.stringify(pendingDownloads)}`);
+      this.activeDownloads.clear();
+    }
+
     const entryStack = (() => {
       try {
         const stack = new Error().stack;

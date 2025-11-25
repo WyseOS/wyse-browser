@@ -16,8 +16,16 @@ import { Response as ExpressResponse } from 'express';
 import { FileApiService } from './file.service';
 import { FILE_CONSTANTS } from '../constants';
 import { createReadStream } from 'fs';
-import { Request } from 'express';
-import * as multer from 'multer';
+
+interface UploadedFile {
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    size: number;
+    path: string;
+    filename: string;
+}
 
 @Controller('api')
 export class FileController {
@@ -31,7 +39,7 @@ export class FileController {
     }))
     async uploadFile(
         @Param("sessionId") sessionId: string,
-        @UploadedFiles() files: Express.Multer.File[],
+        @UploadedFiles() files: UploadedFile[],
         @Body() body: any,
         @Res() res: ExpressResponse
     ) {
@@ -136,26 +144,6 @@ export class FileController {
         }
     }
 
-    @Get("/sessions/:sessionId/files.zip")
-    async downloadArchive(
-        @Param("sessionId") sessionId: string,
-        @Res() res: ExpressResponse
-    ) {
-        try {
-            const { stream, headers } = await this.fileApiService.handleDownloadArchive(sessionId);
-
-            Object.entries(headers).forEach(([key, value]) => {
-                res.header(key, value);
-            });
-
-            return stream.pipe(res);
-        } catch (error) {
-            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-                success: false,
-                message: error.message
-            });
-        }
-    }
 
     @Delete("/sessions/:sessionId/files/*")
     async deleteFile(

@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FileService } from '../file';
+import { OSSUpload } from '../utils/oss';
+import { SendAlarm } from '../utils/alarm';
 import { FILE_CONSTANTS } from '../constants';
-import path from 'path';
-import fs from 'fs';
 import { Readable } from 'stream';
 
 interface FileDetails {
     path: string;
     size: number;
     lastModified: string;
+    url: string;
 }
 
 interface MultipleFiles {
@@ -18,19 +18,9 @@ interface MultipleFiles {
 @Injectable()
 export class FileApiService {
     private logger: Logger;
-    private coreFileService: FileService;
-    private baseFilesPath: string;
 
     constructor() {
         this.logger = new Logger(FileApiService.name);
-        this.coreFileService = FileService.getInstance();
-        this.baseFilesPath = this.coreFileService.getBaseFilesPath();
-    }
-
-    // Session isolation core methods
-    private getSessionBasePath(sessionId: string): string {
-        this.validateSessionId(sessionId);
-        return path.join(this.baseFilesPath, sessionId);
     }
 
     private validateSessionId(sessionId: string): void {
@@ -47,207 +37,140 @@ export class FileApiService {
         }
     }
 
-    private getSessionFilePath(sessionId: string, relativePath: string): string {
-        const sessionBasePath = this.getSessionBasePath(sessionId);
-
-        if (!fs.existsSync(sessionBasePath)) {
-            fs.mkdirSync(sessionBasePath, { recursive: true });
-            this.logger.log(`Created session directory: ${sessionId}`);
-        }
-
-        const resolvedPath = path.resolve(sessionBasePath, relativePath);
-        if (!resolvedPath.startsWith(sessionBasePath + path.sep) && resolvedPath !== sessionBasePath) {
-            throw new Error(`Invalid file path: ${relativePath} - outside session directory`);
-        }
-
-        return resolvedPath;
-    }
-
     async getSessionStorageSize(sessionId: string): Promise<number> {
-        const sessionBasePath = this.getSessionBasePath(sessionId);
-
-        if (!fs.existsSync(sessionBasePath)) {
-            return 0;
-        }
-
-        return this.calculateDirectorySize(sessionBasePath);
+        this.validateSessionId(sessionId);
+        return await OSSUpload.getSessionStorageSize(sessionId);
     }
 
-    private async calculateDirectorySize(dirPath: string): Promise<number> {
-        let totalSize = 0;
+    async handleFileUpload(sessionId: string, filePath: string, stream: Readable): Promise<FileDetails> {
+        this.validateSessionId(sessionId);
 
         try {
-            const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-
-            for (const entry of entries) {
-                const entryPath = path.join(dirPath, entry.name);
-
-                if (entry.isFile()) {
-                    const stats = await fs.promises.stat(entryPath);
-                    totalSize += stats.size;
-                } else if (entry.isDirectory()) {
-                    totalSize += await this.calculateDirectorySize(entryPath);
-                }
+            const currentSize = await this.getSessionStorageSize(sessionId);
+            if (currentSize >= FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION) {
+                throw new Error('Session storage limit exceeded');
             }
+
+            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
+            const result = await OSSUpload.putStream(objectPath, stream);
+
+            const fileMetadata = await OSSUpload.head(objectPath);
+            const fileSize = parseInt(fileMetadata.res.headers['content-length'] || '0', 10);
+
+            return {
+                path: filePath,
+                size: fileSize,
+                lastModified: fileMetadata.res.headers['last-modified'] || new Date().toISOString(),
+                url: result.url,
+            };
+
         } catch (error) {
-            this.logger.error(`Error calculating directory size: ${error.message}`);
+            this.logger.error(`File upload failed: ${sessionId}/${filePath}, error: ${error.message}`);
+
+            await SendAlarm.sendTextMessage(
+                'File Upload Failed',
+                `Session: ${sessionId}\nFilename: ${filePath}\nError: ${error.message}`
+            ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+
+            throw error;
         }
-
-        return totalSize;
-    }
-
-    // Core file operations with session isolation
-    async handleFileUpload(sessionId: string, filePath: string, stream: Readable): Promise<FileDetails> {
-        const sessionFilePath = this.getSessionFilePath(sessionId, filePath);
-
-        const result = await this.coreFileService.saveFile({
-            filePath: sessionFilePath,
-            stream,
-        });
-
-        return {
-            path: filePath, // Return relative path to session
-            size: result.size,
-            lastModified: result.lastModified.toISOString(),
-        };
     }
 
     async handleFileDownload(sessionId: string, filePath: string): Promise<{
         stream: Readable;
         headers: Record<string, string>;
     }> {
-        const sessionFilePath = this.getSessionFilePath(sessionId, filePath);
+        this.validateSessionId(sessionId);
 
-        const { stream, size, lastModified } = await this.coreFileService.downloadFile({
-            filePath: sessionFilePath,
-        });
+        try {
+            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
+            const stream = await OSSUpload.getStream(objectPath);
+            const metadata = await OSSUpload.head(objectPath);
 
-        const headers = {
-            'Content-Type': this.getMimeType(filePath),
-            'Content-Length': size.toString(),
-            'Content-Disposition': `attachment; filename="${path.basename(filePath)}"`,
-            'Last-Modified': lastModified.toUTCString(),
-        };
+            const headers = {
+                'Content-Type': metadata.res.headers['content-type'] || 'application/octet-stream',
+                'Content-Length': metadata.res.headers['content-length'] || '0',
+                'Content-Disposition': `attachment; filename="${filePath}"`,
+                'Last-Modified': metadata.res.headers['last-modified'] || new Date().toUTCString(),
+            };
 
-        return { stream, headers };
+            return { stream, headers };
+
+        } catch (error) {
+            this.logger.error(`File download failed: ${sessionId}/${filePath}, error: ${error.message}`);
+            throw error;
+        }
     }
 
     async handleFileHead(sessionId: string, filePath: string): Promise<Record<string, string>> {
-        const sessionFilePath = this.getSessionFilePath(sessionId, filePath);
+        this.validateSessionId(sessionId);
 
-        const { size, lastModified } = await this.coreFileService.getFile({
-            filePath: sessionFilePath,
-        });
+        try {
+            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
+            const metadata = await OSSUpload.head(objectPath);
 
-        return {
-            'Content-Type': this.getMimeType(filePath),
-            'Content-Length': size.toString(),
-            'Content-Disposition': `attachment; filename="${path.basename(filePath)}"`,
-            'Last-Modified': lastModified.toUTCString(),
-        };
+            return {
+                'Content-Type': metadata.res.headers['content-type'] || 'application/octet-stream',
+                'Content-Length': metadata.res.headers['content-length'] || '0',
+                'Content-Disposition': `attachment; filename="${filePath}"`,
+                'Last-Modified': metadata.res.headers['last-modified'] || new Date().toUTCString(),
+            };
+
+        } catch (error) {
+            this.logger.error(`File head failed: ${sessionId}/${filePath}, error: ${error.message}`);
+            throw error;
+        }
     }
 
     async handleFileList(sessionId: string): Promise<MultipleFiles> {
-        const sessionBasePath = this.getSessionBasePath(sessionId);
+        this.validateSessionId(sessionId);
 
-        if (!fs.existsSync(sessionBasePath)) {
-            return { data: [] };
+        try {
+            const files = await OSSUpload.listSessionFiles(sessionId);
+            const sessionPath = OSSUpload.getSessionPath(sessionId);
+
+            return {
+                data: files.map(file => ({
+                    path: file.name.replace(sessionPath, ''),
+                    size: file.size,
+                    lastModified: file.lastModified || new Date().toISOString(),
+                    url: OSSUpload.getPublicUrl(file.name),
+                })),
+            };
+
+        } catch (error) {
+            this.logger.error(`File list failed: ${sessionId}, error: ${error.message}`);
+            throw error;
         }
-
-        const files = await this.listSessionFiles(sessionBasePath);
-
-        return {
-            data: files.map(file => ({
-                path: file.relativePath,
-                size: file.size,
-                lastModified: file.lastModified.toISOString(),
-            })),
-        };
     }
 
     async handleFileDelete(sessionId: string, filePath: string): Promise<void> {
-        const sessionFilePath = this.getSessionFilePath(sessionId, filePath);
+        this.validateSessionId(sessionId);
 
-        await this.coreFileService.deleteFile({
-            filePath: sessionFilePath,
-        });
-    }
+        try {
+            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
+            await OSSUpload.deleteFile(objectPath);
 
-    async handleFileDeleteAll(sessionId: string): Promise<void> {
-        const sessionBasePath = this.getSessionBasePath(sessionId);
+            this.logger.log(`File deleted: ${objectPath}`);
 
-        if (fs.existsSync(sessionBasePath)) {
-            await fs.promises.rm(sessionBasePath, { recursive: true, force: true });
-            this.logger.log(`Deleted all files for session: ${sessionId}`);
+        } catch (error) {
+            this.logger.error(`File delete failed: ${sessionId}/${filePath}, error: ${error.message}`);
+            throw error;
         }
     }
 
-    async handleDownloadArchive(sessionId: string): Promise<{
-        stream: Readable;
-        headers: Record<string, string>;
-    }> {
-        // Use core service's archive functionality
-        const archivePath = await this.coreFileService.getPrebuiltArchivePath();
+    async handleFileDeleteAll(sessionId: string): Promise<number> {
+        this.validateSessionId(sessionId);
 
-        const stats = await fs.promises.stat(archivePath);
-        const stream = fs.createReadStream(archivePath);
+        try {
+            const deletedCount = await OSSUpload.deleteSessionFiles(sessionId);
 
-        const headers = {
-            'Content-Type': 'application/zip',
-            'Content-Disposition': `attachment; filename="session-${sessionId}-files.zip"`,
-            'Content-Length': stats.size.toString(),
-            'Last-Modified': stats.mtime.toUTCString(),
-        };
+            this.logger.log(`Deleted ${deletedCount} files for session: ${sessionId}`);
+            return deletedCount;
 
-        return { stream, headers };
-    }
-
-    // Helper methods
-    private getMimeType(filePath: string): string {
-        const ext = path.extname(filePath).toLowerCase();
-        const mimeTypes: Record<string, string> = {
-            '.txt': 'text/plain',
-            '.json': 'application/json',
-            '.pdf': 'application/pdf',
-            '.jpg': 'image/jpeg',
-            '.png': 'image/png',
-            '.zip': 'application/zip',
-            '.csv': 'text/csv',
-            '.html': 'text/html',
-            '.xml': 'application/xml',
-        };
-
-        return mimeTypes[ext] || 'application/octet-stream';
-    }
-
-    private async listSessionFiles(sessionPath: string): Promise<Array<{
-        relativePath: string;
-        size: number;
-        lastModified: Date;
-    }>> {
-        const files: Array<{ relativePath: string; size: number; lastModified: Date }> = [];
-
-        const collectFiles = async (currentDir: string, relativePath = ''): Promise<void> => {
-            const entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
-
-            for (const entry of entries) {
-                const entryPath = path.join(currentDir, entry.name);
-                const entryRelativePath = path.join(relativePath, entry.name);
-
-                if (entry.isFile()) {
-                    const stats = await fs.promises.stat(entryPath);
-                    files.push({
-                        relativePath: entryRelativePath,
-                        size: stats.size,
-                        lastModified: stats.mtime,
-                    });
-                } else if (entry.isDirectory()) {
-                    await collectFiles(entryPath, entryRelativePath);
-                }
-            }
-        };
-
-        await collectFiles(sessionPath);
-        return files.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
+        } catch (error) {
+            this.logger.error(`Delete all files failed: ${sessionId}, error: ${error.message}`);
+            throw error;
+        }
     }
 }
