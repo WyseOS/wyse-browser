@@ -45,7 +45,7 @@ export class Runtime {
 
     constructor() {
         this.logger = new Logger(Runtime.name);
-        let engineConfig = JSON.parse(fs.readFileSync(path.resolve('..', "configs/engine", "config.json"), "utf8"));
+        let engineConfig = JSON.parse(fs.readFileSync(path.resolve('..', "configs/browser", "config.json"), "utf8"));
         this.headless = engineConfig.browser.headless;
         this.page_devtool_frontend_host = engineConfig.browser.page_devtool_frontend_host;
         this.page_devtool_ws_host = engineConfig.browser.page_devtool_ws_host;

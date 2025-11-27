@@ -60,7 +60,7 @@
     "postinstall": "npx playwright install chromium",
     "prepublish": "pnpm build",
     "build": "pnpm build:api && pnpm copy-assets",
-    "build:api": "NODE_OPTIONS='--max-old-space-size=8192' nest build",
+    "build:api": "nest build",
     "copy-assets": "mkdir -p dist/browser/src/constants && cp src/constants/page_script.js dist/browser/src/constants/",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node dist/engine/src/index",
