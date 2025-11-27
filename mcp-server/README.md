@@ -56,15 +56,15 @@ Example configuration for Claude Desktop (`claude_desktop_config.json`):
   }
 }
 ```
-
 ## Development
 
 ```bash
 # Watch mode for development
 pnpm dev
-```
-
-## Dependencies
+```## Dependencies
 
 This server depends on the `wyse-browser` package for browser automation capabilities.
+
+
+
 
