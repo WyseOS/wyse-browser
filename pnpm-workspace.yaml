@@ -1,0 +1,6 @@
+packages:
+  - 'browser'
+  - 'mcp-server'
+  - 'web'
+  - 'worklets/*'
+

@@ -31,3 +31,14 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+// Export classes for external use (e.g., MCP server)
+export { Runtime } from './runtime';
+export { BrowserAction } from './action';
+export { Session, SessionPage } from './session';
+export { SessionContext } from './session_context';
+export { Flow } from './flow';
+
+// Export types
+export type { Parameters } from './interfaces/iflow';
+export type { BrowserActionParameters } from './interfaces/iaction';

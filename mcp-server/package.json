@@ -1,0 +1,47 @@
+{
+    "name": "wyse-browser-mcp",
+    "description": "MCP server for wyse browser control",
+    "version": "0.10.0",
+    "type": "module",
+    "main": "dist/index.js",
+    "bin": {
+        "wyse-browser-mcp": "dist/index.js"
+    },
+    "files": [
+        "dist/"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "start": "node dist/index.js",
+        "inspector": "npx @modelcontextprotocol/inspector node dist/index.js"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.18.1",
+        "uuid": "^10.0.0",
+        "wyse-browser": "workspace:*",
+        "zod": "^3.25.76"
+    },
+    "devDependencies": {
+        "@types/node": "^22.16.3",
+        "@types/uuid": "^10.0.0",
+        "tsup": "^8.5.0",
+        "typescript": "^5.8.3"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "keywords": [
+        "mcp",
+        "model-context-protocol",
+        "browser-automation",
+        "playwright",
+        "wyse-browser"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/WyseOS/wyse-browser",
+        "directory": "mcp-server"
+    },
+    "packageManager": "pnpm@8.7.5+sha1.735d4d0e6fc66c4d2d64b269b08e5995b19230ca"
+}
