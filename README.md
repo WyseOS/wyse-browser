@@ -16,11 +16,8 @@ Wyse Browser is a powerful, multi-process runtime engine designed for executing 
 -   **Comprehensive REST API Control** 🔗: Offers a full-featured REST API for programmatic control over every aspect of the browser environment, including sessions, pages, flows, and individual browser actions.
 -   **Parallel & Isolated Session Execution** ⚡: Manages multiple independent browser sessions in parallel, each running in a sandboxed Chrome instance with isolated contexts (cookies, local storage), ensuring tasks run without interference.
 -   **Rich & Granular Action Space** 🤖: Provides a wide array of built-in, low-level browser actions—from navigation and clicking to executing custom JavaScript—offering precise control over browser interactions.
--   **Robust Security & Data Privacy** 🔒: Prioritizes user safety with explicit consent mechanisms for data access, strong data privacy measures, and secure handling of worklets which involve arbitrary code execution.
 
 ## Architecture 🏗️
-
-The Wyse Browser protocol is built for distributed systems, enabling each engine to manage multiple workflow and worklet instances efficiently.
 
 ```mermaid
 graph TD
@@ -160,14 +157,6 @@ Here's a quick example of how to use `curl` to create a session, navigate to a p
 ## API Reference 📚
 
 Please refer to [API_REFERENCE.md](API_REFERENCE.md) for the complete API reference.
-
-## Security and Safety 🔒
-
-Security and user safety are paramount in Wyse Browser:
-
-1.  **User Consent and Control**: Users must explicitly consent to and fully understand all data access and operations.
-2.  **Data Privacy**: Applications must obtain explicit user consent before exposing any user data to external servers.
-3.  **Worklet Safety**: Worklets involve arbitrary code execution and must be handled with extreme caution. Hosts must obtain explicit user consent before invoking any worklet.
 
 ## Contributing 🤝
 

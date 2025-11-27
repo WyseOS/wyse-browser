@@ -3,8 +3,8 @@ import { Runtime } from '../runtime';
 import { registerTools } from './tools';
 import { BrowserAction } from '../action';
 import { SessionContext } from '../session_context';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio';
 
 // Create MCP server instance
 export const mcpServer = new McpServer({
@@ -29,12 +29,12 @@ async function createNewSession(): Promise<{ sessionId: string; session: any }> 
   const runtime = await initializeRuntime();
   const sessionContext = SessionContext.Default();
   const sessionId = uuidv4();
-  
+
   try {
     await runtime.createSession(sessionContext, sessionId);
     const session = runtime.getSession(sessionId);
     activeSessions.set(sessionId, session);
-    
+
     return { sessionId, session };
   } catch (error) {
     throw new Error(`Failed to create session: ${error.message}`);
@@ -53,7 +53,7 @@ export async function executeBrowserAction(actionName: string, params: Record<st
   try {
     const { session } = await getOrCreateSession();
     const browserAction = new BrowserAction();
-    
+
     // Page ID 0 for the first/primary page
     const result = await browserAction.action(session, 0, actionName, params);
     return result;

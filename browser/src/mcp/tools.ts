@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { executeBrowserAction } from './server';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 export function registerTools(mcpServer: McpServer): void {
   mcpServer.registerTool(
@@ -59,9 +59,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!url) {
           throw new Error("URL parameter is required");
         }
-        
+
         await executeBrowserAction("visit", { url });
-        
+
         return {
           content: [{
             type: "text",
@@ -96,9 +96,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (num === undefined) {
           throw new Error("num parameter is required");
         }
-        
+
         await executeBrowserAction("history", { num });
-        
+
         const direction = num > 0 ? "forward" : num < 0 ? "backward" : "no change";
         return {
           content: [{
@@ -134,9 +134,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!searchKey) {
           throw new Error("search_key parameter is required");
         }
-        
+
         await executeBrowserAction("search", { search_key: searchKey });
-        
+
         return {
           content: [{
             type: "text",
@@ -165,7 +165,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         await executeBrowserAction("refresh_page");
-        
+
         return {
           content: [{
             type: "text",
@@ -201,16 +201,16 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("click", params);
-        
+
         let message = "Successfully clicked ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -246,16 +246,16 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("double_click", params);
-        
+
         let message = "Successfully double clicked ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -294,13 +294,13 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.text) {
           throw new Error("text parameter is required");
         }
-        
+
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("text", params);
-        
+
         return {
           content: [{
             type: "text",
@@ -329,7 +329,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         await executeBrowserAction("scroll_up");
-        
+
         return {
           content: [{
             type: "text",
@@ -358,7 +358,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         await executeBrowserAction("scroll_down");
-        
+
         return {
           content: [{
             type: "text",
@@ -393,9 +393,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!time) {
           throw new Error("time parameter is required");
         }
-        
+
         await executeBrowserAction("wait", { time });
-        
+
         return {
           content: [{
             type: "text",
@@ -433,9 +433,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!keys) {
           throw new Error("keys parameter is required");
         }
-        
+
         await executeBrowserAction("key_press", { keys });
-        
+
         const keysStr = Array.isArray(keys) ? keys.join(', ') : keys;
         return {
           content: [{
@@ -472,16 +472,16 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("hover", params);
-        
+
         let message = "Successfully hovered over ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -516,9 +516,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!script) {
           throw new Error("script parameter is required");
         }
-        
+
         const result = await executeBrowserAction("evaluate", { script });
-        
+
         return {
           content: [{
             type: "text",
@@ -547,7 +547,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         const content = await executeBrowserAction("content");
-        
+
         return {
           content: [{
             type: "text",
@@ -579,11 +579,11 @@ export function registerTools(mcpServer: McpServer): void {
     async (params: any) => {
       try {
         await executeBrowserAction("create_tab", params || {});
-        
-        const message = params?.url 
+
+        const message = params?.url
           ? `Successfully created new tab with URL: ${params.url}`
           : "Successfully created new blank tab";
-        
+
         return {
           content: [{
             type: "text",
@@ -618,9 +618,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (tabIndex === undefined) {
           throw new Error("tab_index parameter is required");
         }
-        
+
         await executeBrowserAction("switch_tab", { tab_index: tabIndex });
-        
+
         return {
           content: [{
             type: "text",
@@ -655,9 +655,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (tabIndex === undefined) {
           throw new Error("tab_index parameter is required");
         }
-        
+
         await executeBrowserAction("close_tab", { tab_index: tabIndex });
-        
+
         return {
           content: [{
             type: "text",
@@ -686,7 +686,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         const tabsInfo = await executeBrowserAction("tabs_info");
-        
+
         return {
           content: [{
             type: "text",
@@ -715,7 +715,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         const screenshot = await executeBrowserAction("screenshot");
-        
+
         return {
           content: [{
             type: "text",
@@ -752,24 +752,24 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("click_full", params);
-        
+
         let message = "Successfully clicked ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         if (params.hold) {
           message += ` with hold time ${params.hold}s`;
         }
-        
+
         if (params.button) {
           message += ` using ${params.button} button`;
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -806,20 +806,20 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         if (!params?.page_number) {
           throw new Error("page_number parameter is required");
         }
-        
+
         await executeBrowserAction("scroll_element_up", params);
-        
+
         let message = `Successfully scrolled up ${params.page_number} page(s) on `;
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `element at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -856,20 +856,20 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         if (!params?.page_number) {
           throw new Error("page_number parameter is required");
         }
-        
+
         await executeBrowserAction("scroll_element_down", params);
-        
+
         let message = `Successfully scrolled down ${params.page_number} page(s) on `;
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `element at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -903,9 +903,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id) {
           throw new Error("element_id parameter is required");
         }
-        
+
         await executeBrowserAction("scroll_to", params);
-        
+
         return {
           content: [{
             type: "text",
@@ -934,7 +934,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         await executeBrowserAction("init_js");
-        
+
         return {
           content: [{
             type: "text",
@@ -963,7 +963,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         await executeBrowserAction("wait_for_load_state");
-        
+
         return {
           content: [{
             type: "text",
@@ -992,7 +992,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         await executeBrowserAction("cleanup_animations");
-        
+
         return {
           content: [{
             type: "text",
@@ -1026,9 +1026,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id) {
           throw new Error("element_id parameter is required");
         }
-        
+
         await executeBrowserAction("preview_action", params);
-        
+
         return {
           content: [{
             type: "text",
@@ -1062,9 +1062,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.content) {
           throw new Error("content parameter is required");
         }
-        
+
         await executeBrowserAction("set_content", params);
-        
+
         return {
           content: [{
             type: "text",
@@ -1093,7 +1093,7 @@ export function registerTools(mcpServer: McpServer): void {
     async () => {
       try {
         await executeBrowserAction("ensure_page_ready");
-        
+
         return {
           content: [{
             type: "text",
@@ -1129,16 +1129,16 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("select_option", params);
-        
+
         let message = "Successfully selected ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `element at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -1178,9 +1178,9 @@ export function registerTools(mcpServer: McpServer): void {
         if (!params?.drag_path) {
           throw new Error("drag_path parameter is required");
         }
-        
+
         await executeBrowserAction("drag", params);
-        
+
         return {
           content: [{
             type: "text",

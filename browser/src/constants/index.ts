@@ -231,6 +231,5 @@ export const FILE_CONSTANTS = {
   OSS_UPLOAD_TIMEOUT: 120000, // 120s
 
   // Legacy constants
-  // UPLOAD_TEMP_DIR: '/tmp/file-uploads',
-  // ARCHIVE_DIR: '/tmp/.browser',
+  UPLOAD_TEMP_DIR: '/tmp/file-uploads',
 } as const;
