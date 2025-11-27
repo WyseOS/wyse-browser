@@ -8,5 +8,13 @@
             "username": "",
             "password": ""
         }
+    },
+    "aliyun": {
+        "access_key": "",
+        "access_secret": "",
+        "oss_region": "",
+        "oss_bucket": "",
+        "oss_endpoint": "",
+        "url": ""
     }
 }
