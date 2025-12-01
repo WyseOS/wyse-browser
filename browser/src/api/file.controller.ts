@@ -29,7 +29,7 @@ export class FileController {
         private readonly runtime: Runtime
     ) { }
 
-    @Post("/sessions/:sessionId/files")
+    @Post("/session/:sessionId/files")
     @UseInterceptors(AnyFilesInterceptor({
         limits: {
             fileSize: FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION,
@@ -71,7 +71,7 @@ export class FileController {
         }
     }
 
-    @Get("/sessions/:sessionId/files")
+    @Get("/session/:sessionId/files")
     async listFiles(
         @Param("sessionId") sessionId: string,
         @Res() res: ExpressResponse
@@ -104,7 +104,7 @@ export class FileController {
         }
     }
 
-    @Get("/sessions/:sessionId/files/*")
+    @Get("/session/:sessionId/files/*")
     async downloadFile(
         @Param("sessionId") sessionId: string,
         @Param("*") filePath: string,
@@ -126,7 +126,7 @@ export class FileController {
         }
     }
 
-    @Head("/sessions/:sessionId/files/*")
+    @Head("/session/:sessionId/files/*")
     async headFile(
         @Param("sessionId") sessionId: string,
         @Param("*") filePath: string,
@@ -149,7 +149,7 @@ export class FileController {
     }
 
 
-    @Delete("/sessions/:sessionId/files/*")
+    @Delete("/session/:sessionId/files/*")
     async deleteFile(
         @Param("sessionId") sessionId: string,
         @Param("*") filePath: string,
@@ -166,7 +166,7 @@ export class FileController {
         }
     }
 
-    @Delete("/sessions/:sessionId/files")
+    @Delete("/session/:sessionId/files")
     async deleteAllFiles(
         @Param("sessionId") sessionId: string,
         @Res() res: ExpressResponse

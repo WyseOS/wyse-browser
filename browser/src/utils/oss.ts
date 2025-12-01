@@ -3,7 +3,7 @@ import OSS from 'ali-oss';
 import path from 'path';
 import { Logger } from '@nestjs/common';
 import { Readable } from 'stream';
-import { FILE_CONSTANTS } from '../constants';
+import { FILE_CONSTANTS, GetDateYYYYMMDD } from '../constants';
 
 export class OSSClient {
     private logger: Logger;
@@ -55,7 +55,8 @@ export class OSSClient {
     }
 
     getSessionPath(sessionId: string): string {
-        return `${FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX}/${sessionId}/`;
+        let today = GetDateYYYYMMDD();
+        return `${FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX}/${today}/session/${sessionId}/files/`;
     }
 
     getObjectPath(sessionId: string, filename: string): string {
@@ -198,11 +199,23 @@ export class OSSClient {
     getPublicUrl(objectPath: string): string {
         return this.urlPrefix + objectPath;
     }
+
+    getRelativePath(objectPath: string): string {
+        const prefix = FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX + '/';
+        if (objectPath.startsWith(prefix)) {
+            return objectPath.substring(prefix.length);
+        }
+        return objectPath;
+    }
+
+    buildObjectPath(relativePath: string): string {
+        return `${FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX}/${relativePath}`;
+    }
 }
 
 const ossClientInstance = new OSSClient();
 
-export const OSSUpload = {
+export const OSSFiles = {
     upload: (objectKey: string, localFilePath: string) => ossClientInstance.upload(objectKey, localFilePath),
     putStream: (objectPath: string, stream: Readable, contentType?: string) =>
         ossClientInstance.putStream(objectPath, stream, contentType),
@@ -216,4 +229,6 @@ export const OSSUpload = {
     getSessionPath: (sessionId: string) => ossClientInstance.getSessionPath(sessionId),
     getObjectPath: (sessionId: string, filename: string) =>
         ossClientInstance.getObjectPath(sessionId, filename),
+    getRelativePath: (objectPath: string) => ossClientInstance.getRelativePath(objectPath),
+    buildObjectPath: (relativePath: string) => ossClientInstance.buildObjectPath(relativePath),
 };

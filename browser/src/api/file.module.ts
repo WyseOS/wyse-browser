@@ -3,7 +3,6 @@ import { MulterModule } from '@nestjs/platform-express';
 import { FileController } from './file.controller';
 import { FileApiService } from './file.service';
 import { FILE_CONSTANTS } from '../constants';
-import { Runtime } from '../runtime';
 
 @Module({
     imports: [
@@ -15,7 +14,7 @@ import { Runtime } from '../runtime';
         }),
     ],
     controllers: [FileController],
-    providers: [FileApiService, Runtime],
+    providers: [FileApiService],
     exports: [FileApiService],
 })
 export class FileModule { }
