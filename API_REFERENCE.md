@@ -59,13 +59,13 @@ http://127.0.0.1:13100
 
 | Method | Endpoint | Description | Parameters |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/sessions/:sessionId/files` | Uploads one or more files to a session, checking against session storage limits. | **Path**: `sessionId` (string, required)<br>**Body**: `filePath` (string, optional) - target path for the file, defaults to original name. |
-| `GET` | `/api/sessions/:sessionId/files` | Lists all files stored within a specific session. | **Path**: `sessionId` (string, required) |
-| `GET` | `/api/sessions/:sessionId/files/*` | Downloads a specific file from a session. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
-| `HEAD` | `/api/sessions/:sessionId/files/*` | Retrieves metadata (headers) for a specific file in a session without downloading the content. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
-| `GET` | `/api/sessions/:sessionId/files.zip` | Downloads all files from a session as a ZIP archive. | **Path**: `sessionId` (string, required) |
-| `DELETE` | `/api/sessions/:sessionId/files/*` | Deletes a specific file from a session. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
-| `DELETE` | `/api/sessions/:sessionId/files` | Deletes all files associated with a specific session. | **Path**: `sessionId` (string, required) |
+| `POST` | `/api/session/:sessionId/files` | Uploads one or more files to a session, checking against session storage limits. | **Path**: `sessionId` (string, required)<br>**Body**: `filePath` (string, optional) - target path for the file, defaults to original name. |
+| `GET` | `/api/session/:sessionId/files` | Lists all files stored within a specific session. | **Path**: `sessionId` (string, required) |
+| `GET` | `/api/session/:sessionId/files/*` | Downloads a specific file from a session. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
+| `HEAD` | `/api/session/:sessionId/files/*` | Retrieves metadata (headers) for a specific file in a session without downloading the content. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
+| `GET` | `/api/session/:sessionId/files.zip` | Downloads all files from a session as a ZIP archive. | **Path**: `sessionId` (string, required) |
+| `DELETE` | `/api/session/:sessionId/files/*` | Deletes a specific file from a session. | **Path**:<br>- `sessionId` (string, required)<br>- `filePath` (string, required) |
+| `DELETE` | `/api/session/:sessionId/files` | Deletes all files associated with a specific session. | **Path**: `sessionId` (string, required) |
 
 ## Action Space 🚀
 

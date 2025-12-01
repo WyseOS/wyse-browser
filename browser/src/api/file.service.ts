@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OSSUpload } from '../utils/oss';
+import { OSSFiles } from '../utils/oss';
 import { SendAlarm } from '../utils/alarm';
 import { FILE_CONSTANTS } from '../constants';
 import { Readable } from 'stream';
@@ -39,7 +39,7 @@ export class FileApiService {
 
     async getSessionStorageSize(sessionId: string): Promise<number> {
         this.validateSessionId(sessionId);
-        return await OSSUpload.getSessionStorageSize(sessionId);
+        return await OSSFiles.getSessionStorageSize(sessionId);
     }
 
     async handleFileUpload(sessionId: string, filePath: string, stream: Readable): Promise<FileDetails> {
@@ -51,14 +51,16 @@ export class FileApiService {
                 throw new Error('Session storage limit exceeded');
             }
 
-            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
-            const result = await OSSUpload.putStream(objectPath, stream);
+            const objectPath = OSSFiles.getObjectPath(sessionId, filePath);
+            const result = await OSSFiles.putStream(objectPath, stream);
 
-            const fileMetadata = await OSSUpload.head(objectPath);
+            const fileMetadata = await OSSFiles.head(objectPath);
             const fileSize = parseInt(fileMetadata.res.headers['content-length'] || '0', 10);
 
+            const relativePath = OSSFiles.getRelativePath(objectPath);
+
             return {
-                path: filePath,
+                path: relativePath,
                 size: fileSize,
                 lastModified: fileMetadata.res.headers['last-modified'] || new Date().toISOString(),
                 url: result.url,
@@ -76,48 +78,52 @@ export class FileApiService {
         }
     }
 
-    async handleFileDownload(sessionId: string, filePath: string): Promise<{
+    async handleFileDownload(sessionId: string, relativePath: string): Promise<{
         stream: Readable;
         headers: Record<string, string>;
     }> {
         this.validateSessionId(sessionId);
 
         try {
-            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
-            const stream = await OSSUpload.getStream(objectPath);
-            const metadata = await OSSUpload.head(objectPath);
+            const objectPath = OSSFiles.buildObjectPath(relativePath);
+            const stream = await OSSFiles.getStream(objectPath);
+            const metadata = await OSSFiles.head(objectPath);
+
+            const filename = relativePath.split('/').pop() || relativePath;
 
             const headers = {
                 'Content-Type': metadata.res.headers['content-type'] || 'application/octet-stream',
                 'Content-Length': metadata.res.headers['content-length'] || '0',
-                'Content-Disposition': `attachment; filename="${filePath}"`,
+                'Content-Disposition': `attachment; filename="${filename}"`,
                 'Last-Modified': metadata.res.headers['last-modified'] || new Date().toUTCString(),
             };
 
             return { stream, headers };
 
         } catch (error) {
-            this.logger.error(`File download failed: ${sessionId}/${filePath}, error: ${error.message}`);
+            this.logger.error(`File download failed: ${sessionId}/${relativePath}, error: ${error.message}`);
             throw error;
         }
     }
 
-    async handleFileHead(sessionId: string, filePath: string): Promise<Record<string, string>> {
+    async handleFileHead(sessionId: string, relativePath: string): Promise<Record<string, string>> {
         this.validateSessionId(sessionId);
 
         try {
-            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
-            const metadata = await OSSUpload.head(objectPath);
+            const objectPath = OSSFiles.buildObjectPath(relativePath);
+            const metadata = await OSSFiles.head(objectPath);
+
+            const filename = relativePath.split('/').pop() || relativePath;
 
             return {
                 'Content-Type': metadata.res.headers['content-type'] || 'application/octet-stream',
                 'Content-Length': metadata.res.headers['content-length'] || '0',
-                'Content-Disposition': `attachment; filename="${filePath}"`,
+                'Content-Disposition': `attachment; filename="${filename}"`,
                 'Last-Modified': metadata.res.headers['last-modified'] || new Date().toUTCString(),
             };
 
         } catch (error) {
-            this.logger.error(`File head failed: ${sessionId}/${filePath}, error: ${error.message}`);
+            this.logger.error(`File head failed: ${sessionId}/${relativePath}, error: ${error.message}`);
             throw error;
         }
     }
@@ -126,15 +132,14 @@ export class FileApiService {
         this.validateSessionId(sessionId);
 
         try {
-            const files = await OSSUpload.listSessionFiles(sessionId);
-            const sessionPath = OSSUpload.getSessionPath(sessionId);
+            const files = await OSSFiles.listSessionFiles(sessionId);
 
             return {
                 data: files.map(file => ({
-                    path: file.name.replace(sessionPath, ''),
+                    path: OSSFiles.getRelativePath(file.name),
                     size: file.size,
                     lastModified: file.lastModified || new Date().toISOString(),
-                    url: OSSUpload.getPublicUrl(file.name),
+                    url: OSSFiles.getPublicUrl(file.name),
                 })),
             };
 
@@ -144,17 +149,17 @@ export class FileApiService {
         }
     }
 
-    async handleFileDelete(sessionId: string, filePath: string): Promise<void> {
+    async handleFileDelete(sessionId: string, relativePath: string): Promise<void> {
         this.validateSessionId(sessionId);
 
         try {
-            const objectPath = OSSUpload.getObjectPath(sessionId, filePath);
-            await OSSUpload.deleteFile(objectPath);
+            const objectPath = OSSFiles.buildObjectPath(relativePath);
+            await OSSFiles.deleteFile(objectPath);
 
             this.logger.log(`File deleted: ${objectPath}`);
 
         } catch (error) {
-            this.logger.error(`File delete failed: ${sessionId}/${filePath}, error: ${error.message}`);
+            this.logger.error(`File delete failed: ${sessionId}/${relativePath}, error: ${error.message}`);
             throw error;
         }
     }
@@ -163,7 +168,7 @@ export class FileApiService {
         this.validateSessionId(sessionId);
 
         try {
-            const deletedCount = await OSSUpload.deleteSessionFiles(sessionId);
+            const deletedCount = await OSSFiles.deleteSessionFiles(sessionId);
 
             this.logger.log(`Deleted ${deletedCount} files for session: ${sessionId}`);
             return deletedCount;

@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
-import { OSSUpload } from '../utils/oss';
+import { OSSFiles } from '../utils/oss';
 import { FILE_CONSTANTS } from '../constants';
 import { SendAlarm } from '../utils/alarm';
 
@@ -30,9 +30,9 @@ export class DownloadService {
         this.validateFileExtension(fileExtension, sessionId, suggestedFilename);
 
         const uniqueFilename = `${uuidv4()}${fileExtension}`;
-        const objectPath = OSSUpload.getObjectPath(sessionId, uniqueFilename);
+        const objectPath = OSSFiles.getObjectPath(sessionId, uniqueFilename);
 
-        await OSSUpload.putStream(
+        await OSSFiles.putStream(
             objectPath,
             readStream,
             this.getContentType(fileExtension)
@@ -65,7 +65,7 @@ export class DownloadService {
     }
 
     private async getFileSize(objectPath: string): Promise<number> {
-        const fileMetadata = await OSSUpload.head(objectPath);
+        const fileMetadata = await OSSFiles.head(objectPath);
         return parseInt(fileMetadata.res.headers['content-length'] || '0', 10);
     }
 
@@ -76,7 +76,7 @@ export class DownloadService {
         sessionId: string
     ): Promise<void> {
         if (fileSize > FILE_CONSTANTS.MAX_DOWNLOAD_FILE_SIZE) {
-            await OSSUpload.deleteFile(objectPath);
+            await OSSFiles.deleteFile(objectPath);
 
             const maxSizeMB = (FILE_CONSTANTS.MAX_DOWNLOAD_FILE_SIZE / (1024 * 1024)).toFixed(0);
             const actualSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
@@ -92,10 +92,10 @@ export class DownloadService {
     }
 
     private async validateSessionStorage(sessionId: string, objectPath: string): Promise<void> {
-        const currentSessionSize = await OSSUpload.getSessionStorageSize(sessionId);
+        const currentSessionSize = await OSSFiles.getSessionStorageSize(sessionId);
 
         if (currentSessionSize > FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION) {
-            await OSSUpload.deleteFile(objectPath);
+            await OSSFiles.deleteFile(objectPath);
 
             const maxSessionSizeMB = (FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION / (1024 * 1024)).toFixed(0);
             const currentSizeMB = (currentSessionSize / (1024 * 1024)).toFixed(2);

@@ -2,7 +2,7 @@ import { Browser, BrowserContext, chromium, Page, CDPSession, BrowserContextOpti
 import { DefaultSolveCaptcha, ExtensionPaths, DefaultTimezone, GetDefaultFingerprint, FILE_CONSTANTS } from './constants';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
-import { OSSUpload } from './utils/oss';
+import { OSSFiles } from './utils/oss';
 import { GetDateYYYYMMDD } from './constants';
 import { Logger } from '@nestjs/common';
 import path from 'path';
@@ -953,7 +953,7 @@ export class Session {
             continue;
           }
 
-          browserPages[i].video_url = await OSSUpload.upload(filename, videoPath);
+          browserPages[i].video_url = await OSSFiles.upload(filename, videoPath);
         } catch (error) {
           this.logger.warn(`Error processing video file ${videoPath}: ${error.message}`);
           await SendAlarm.sendTextMessage('OSS Upload Failed', `OSS Upload Failed, error: ${error.message}`);

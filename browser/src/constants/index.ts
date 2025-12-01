@@ -222,10 +222,11 @@ export const FILE_CONSTANTS = {
   ALLOWED_DOWNLOAD_EXTENSIONS: [
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
     '.txt', '.md', '.csv', '.json', '.xml',
-    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
+    ".zip"
   ],
 
-  OSS_SESSION_PATH_PREFIX: 'session/files',
+  OSS_SESSION_PATH_PREFIX: 'attachment',
 
   DOWNLOAD_TIMEOUT: 60000, // 60s
   OSS_UPLOAD_TIMEOUT: 120000, // 120s
