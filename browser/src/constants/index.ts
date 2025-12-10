@@ -216,7 +216,21 @@ export function GetDefaultFingerprint(): BrowserFingerprintWithHeaders {
 }
 
 export const FILE_CONSTANTS = {
-  MAX_FILE_SIZE_PER_SESSION: 100 * 1024 * 1024, // 100MB
+  MAX_DOWNLOAD_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  MAX_FILE_SIZE_PER_SESSION: 200 * 1024 * 1024, // 200MB
+
+  ALLOWED_DOWNLOAD_EXTENSIONS: [
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+    '.txt', '.md', '.csv', '.json', '.xml',
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
+    ".zip"
+  ],
+
+  OSS_SESSION_PATH_PREFIX: 'attachment',
+
+  DOWNLOAD_TIMEOUT: 60000, // 60s
+  OSS_UPLOAD_TIMEOUT: 120000, // 120s
+
+  // Legacy constants
   UPLOAD_TEMP_DIR: '/tmp/file-uploads',
-  ARCHIVE_DIR: '/tmp/.browser',
 } as const;

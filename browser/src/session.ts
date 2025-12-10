@@ -1,8 +1,8 @@
 import { Browser, BrowserContext, chromium, Page, CDPSession, BrowserContextOptions } from 'playwright';
-import { DefaultSolveCaptcha, ExtensionPaths, DefaultTimezone, GetDefaultFingerprint } from './constants';
+import { DefaultSolveCaptcha, ExtensionPaths, DefaultTimezone, GetDefaultFingerprint, FILE_CONSTANTS } from './constants';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
-import { OSSUpload } from './utils/oss';
+import { OSSFiles } from './utils/oss';
 import { GetDateYYYYMMDD } from './constants';
 import { Logger } from '@nestjs/common';
 import path from 'path';
@@ -13,6 +13,8 @@ import { BrowserFingerprintWithHeaders, FingerprintGenerator } from "fingerprint
 import { newInjectedContext } from "fingerprint-injector";
 import axios from 'axios';
 import { SessionContext } from './session_context';
+import { Readable } from 'stream';
+import { DownloadService } from './services/download.service';
 
 export class SessionPage {
   url: string;
@@ -75,9 +77,19 @@ export class Session {
   private isInitializationCancelled: boolean = false;
   private timeoutHandle: NodeJS.Timeout = null;
 
+  private activeDownloads: Map<string, {
+    suggestedFilename: string;
+    url: string;
+    startTime: Date;
+    promise: Promise<void>;
+  }> = new Map();
+
+  private downloadedFileCount: number = 0;
+  private readonly downloadUploadService: DownloadService;
 
   constructor() {
     this.lastActionTimestamp = Math.floor(Date.now() / 1000);
+    this.downloadUploadService = new DownloadService();
   }
 
   public async waitForInitialization(): Promise<void> {
@@ -197,13 +209,11 @@ export class Session {
         timeoutPromise
       ]);
 
-      // 成功完成，清理超时处理器
       if (this.timeoutHandle) {
         clearTimeout(this.timeoutHandle);
         this.timeoutHandle = null;
       }
     } catch (error) {
-      // 清理超时处理器
       if (this.timeoutHandle) {
         clearTimeout(this.timeoutHandle);
         this.timeoutHandle = null;
@@ -224,7 +234,6 @@ export class Session {
 
       this.logger.log(`Session ${this.id}: Starting browser initialization`);
 
-      // Common fingerprint options for both branches
       const fingerprintOptions = {
         devices: ["desktop" as const],
         operatingSystems: ["linux" as const],
@@ -258,7 +267,6 @@ export class Session {
           fs.mkdirSync(path.resolve('./user_data'), { recursive: true });
         }
 
-        // Generate fingerprint for extension branch
         try {
           const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
           this.fingerprintData = fingerprintGen.getFingerprint();
@@ -289,14 +297,12 @@ export class Session {
           }
         );
 
-        // Inject fingerprint using FingerprintInjector
         const fingerprintInjector = new FingerprintInjector();
         await fingerprintInjector.attachFingerprintToPlaywright(this.browserContext, this.fingerprintData);
       } else {
         browserArgs.push('--disable-extensions');
         this.browser = await chromium.launch(launchOptions);
 
-        // Use newInjectedContext for non-extension branch (as per documentation)
         this.browserContext = await newInjectedContext(
           this.browser,
           {
@@ -307,9 +313,6 @@ export class Session {
           }
         );
 
-        // For non-extension branch, we need to get the fingerprint data from the context
-        // Since newInjectedContext doesn't return the fingerprint data directly,
-        // we'll generate it separately for consistency in toJson method
         try {
           const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
           this.fingerprintData = fingerprintGen.getFingerprint();
@@ -334,6 +337,8 @@ export class Session {
       if (this.isInitializationCancelled) {
         throw new Error('Initialization was cancelled');
       }
+
+      await this.setupDownloadHandler();
 
       this.logger.log(`Session ${this.id}: Starting page initialization`);
       let pages = await this.browserContext.pages();
@@ -390,7 +395,6 @@ export class Session {
     try {
       this.logger.log(`Session ${this.id}: Cleaning up failed initialization`);
 
-      // 清理超时处理器
       if (this.timeoutHandle) {
         clearTimeout(this.timeoutHandle);
         this.timeoutHandle = null;
@@ -423,7 +427,6 @@ export class Session {
         this.browser = null;
       }
 
-      // 清理扩展相关的用户数据目录
       if (this.sessionContext && this.sessionContext.needExtension()) {
         const userDataPath = path.resolve("./user_data/" + this.id);
         try {
@@ -495,7 +498,6 @@ export class Session {
     return this.wsPort;
   }
 
-  // Deprecated, use action screenshot instead
   async screenshot(): Promise<string> {
     if (!this.isInitialized && this.asyncInitPromise) {
       await this.asyncInitPromise;
@@ -519,7 +521,6 @@ export class Session {
       });
       return buffer.toString('base64');
     } catch (error) {
-      // 如果常规截图失败，尝试紧急截图
       this.logger.warn(`Regular screenshot failed, attempting emergency screenshot: ${error.message}`);
       try {
         return await this.emergencyScreenshot();
@@ -533,14 +534,11 @@ export class Session {
       }
     }
   }
-  /**
-   * Emergency screenshot with minimal waiting
-   */
+
   private async emergencyScreenshot(): Promise<string> {
     try {
-      // 紧急截图：不等待任何加载状态，直接截图
       const buffer = await this.page.screenshot({
-        timeout: 3000, // 很短的超时
+        timeout: 3000,
         fullPage: false,
         animations: 'disabled',
         caret: 'hide'
@@ -548,19 +546,14 @@ export class Session {
 
       return buffer.toString('base64');
     } catch (error) {
-      // 最后的尝试：使用 CDP 直接截图
       return await this.cdpScreenshot();
     }
   }
 
-  /**
-   * Use Chrome DevTools Protocol for screenshot as last resort
-   */
   private async cdpScreenshot(): Promise<string> {
     try {
       const client = await this.page.context().newCDPSession(this.page);
 
-      // 使用 CDP 截图
       const { data } = await client.send('Page.captureScreenshot', {
         format: 'png',
         quality: 80,
@@ -579,76 +572,55 @@ export class Session {
       throw new Error(`CDP screenshot also failed: ${error.message}`);
     }
   }
-  /**
-   * Check if the given URL is a special browser page that doesn't need load state checking
-   * @param url The URL to check
-   * @returns boolean indicating if this is a special browser page
-   */
+
   private isSpecialBrowserPage(url: string): boolean {
-    // 空白页面
     if (url === 'about:blank') return true;
 
-    // Chrome特殊页面
     if (url.startsWith('chrome://')) return true;
     if (url.startsWith('chrome-error://')) return true;
     if (url.startsWith('chrome-extension://')) return true;
 
-    // 其他浏览器特殊页面
     if (url.startsWith('about:')) return true;
     if (url.startsWith('edge://')) return true;
     if (url.startsWith('firefox://')) return true;
     if (url.startsWith('view-source:')) return true;
 
-    // 调试页面
     if (url.startsWith('devtools://')) return true;
     if (url.includes('__playwright_proxy__')) return true;
 
-    // 文件协议
     if (url.startsWith('file://')) return true;
 
-    // 数据URL
     if (url.startsWith('data:')) return true;
 
     return false;
   }
 
-  /**
-   * Ensure page is ready for screenshot
-   * This includes waiting for page load and handling timeout scenarios
-   */
   private async ensurePageReadyForScreenshot(): Promise<void> {
     if (!this.page) {
       throw new Error('Page is null or undefined');
     }
-    const shortTimeout = 5000; // 缩短初始等待时间
-    const fallbackTimeout = 3000; // 备用等待时间
+    const shortTimeout = 5000;
+    const fallbackTimeout = 3000;
     try {
-      // 首先尝试等待 domcontentloaded，这比 load 更快
       await this.page.waitForLoadState('domcontentloaded', { timeout: shortTimeout });
 
-      // 然后尝试等待 networkidle，但时间很短
       await this.page.waitForLoadState('networkidle', { timeout: fallbackTimeout });
     } catch (error) {
       this.logger.warn(`Fast page load check failed, trying load state: ${error.message}`);
 
       try {
-        // 如果快速检查失败，尝试等待基本加载
         await this.page.waitForLoadState('load', { timeout: shortTimeout });
       } catch (loadError) {
         this.logger.warn(`Page load timeout, attempting to stop loading: ${loadError.message}`);
-        // 停止页面加载
         try {
           await this.page.evaluate(async () => {
-            // 停止所有加载
             await this.page.evaluate("window.stop()");
             await this.page.waitForTimeout(1000)
-            // 移除可能导致持续加载的元素
             const problematicElements = document.querySelectorAll('iframe, embed, object');
             problematicElements.forEach(el => {
               try {
                 el.remove();
               } catch (e) {
-                // 忽略移除错误
               }
             });
           });
@@ -657,7 +629,6 @@ export class Session {
         }
       }
     }
-    // Check and fix viewport size if needed
     try {
       const viewport = await this.page.viewportSize();
       if (viewport && (viewport.width !== this.width || viewport.height !== this.height)) {
@@ -718,7 +689,159 @@ export class Session {
     return new SessionPageDebugerUrl('', '', '', '');
   }
 
+  private async setupDownloadHandler(): Promise<void> {
+    this.browserContext.on('page', (page) => {
+      this.setupPageDownloadHandler(page);
+    });
+
+    const pages = await this.browserContext.pages();
+    pages.forEach(page => this.setupPageDownloadHandler(page));
+  }
+
+  private setupPageDownloadHandler(page: Page): void {
+    page.on('download', (download) => {
+      this.handleDownloadAsync(download).catch(error => {
+        this.logger.error(`Unhandled download error: ${error.message}`);
+      });
+    });
+  }
+
+  private async handleDownloadAsync(download: any): Promise<void> {
+    const suggestedFilename = download.suggestedFilename();
+    const url = download.url();
+    const downloadId = `${Date.now()}-${suggestedFilename}`;
+
+    this.logger.log(`Download initiated: ${suggestedFilename} from ${url}`);
+
+    const downloadPromise = this.processDownload(download, suggestedFilename, url, downloadId);
+
+    this.activeDownloads.set(downloadId, {
+      suggestedFilename,
+      url,
+      startTime: new Date(),
+      promise: downloadPromise
+    });
+
+    await downloadPromise;
+  }
+
+  private async processDownload(
+    download: any,
+    suggestedFilename: string,
+    url: string,
+    downloadId: string
+  ): Promise<void> {
+    const startTime = Date.now();
+    let readStream: Readable | null = null;
+    let streamCleanupAttempted = false;
+
+    const ensureStreamCleanup = () => {
+      if (!streamCleanupAttempted && readStream && !readStream.destroyed) {
+        streamCleanupAttempted = true;
+        try {
+          readStream.destroy();
+        } catch (cleanupError) {
+          this.logger.error(`Failed to cleanup read stream: ${cleanupError.message}`);
+        }
+      }
+    };
+
+    try {
+      const fileExtension = path.extname(suggestedFilename).toLowerCase();
+      if (!(FILE_CONSTANTS.ALLOWED_DOWNLOAD_EXTENSIONS as readonly string[]).includes(fileExtension)) {
+        await download.cancel();
+        throw new Error(`File type "${fileExtension}" is not allowed`);
+      }
+
+      readStream = await download.createReadStream();
+      if (!readStream) {
+        throw new Error('Failed to create read stream from download');
+      }
+
+      const result = await this.downloadUploadService.uploadDownloadedFile({
+        sessionId: this.id,
+        suggestedFilename,
+        readStream,
+        startTime,
+      });
+
+      this.downloadedFileCount++;
+
+      const fileSizeMB = (result.fileSize / (1024 * 1024)).toFixed(2);
+      const fileKB = (result.fileSize / 1024).toFixed(2);
+      const sizeDisplay = result.fileSize >= 1024 * 1024 ? `${fileSizeMB}MB` : `${fileKB}KB`;
+
+      this.logger.log(
+        `Download completed: ${result.uniqueFilename}, ` +
+        `size: ${sizeDisplay}, duration: ${result.duration}ms, ` +
+        `total files: ${this.downloadedFileCount}`
+      );
+
+      this.updateActionTimestamp();
+
+    } catch (error) {
+      const errorMessage = error.message || String(error);
+
+      this.logger.error(`Download failed: ${suggestedFilename}, error: ${errorMessage}`);
+
+      if (errorMessage.includes('OSS')) {
+        await SendAlarm.sendTextMessage(
+          'OSS Upload Failed',
+          `Session: ${this.id}\nFilename: ${suggestedFilename}\nError: ${errorMessage}`
+        ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+      } else if (!errorMessage.includes('not allowed')) {
+        await SendAlarm.sendTextMessage(
+          'Download Failed',
+          `Session: ${this.id}\nFilename: ${suggestedFilename}\nURL: ${url}\nError: ${errorMessage}`
+        ).catch(err => this.logger.error(`Failed to send alarm: ${err.message}`));
+      }
+    } finally {
+      ensureStreamCleanup();
+      this.activeDownloads.delete(downloadId);
+    }
+  }
+
+  public hasActiveDownloads(): boolean {
+    return this.activeDownloads.size > 0;
+  }
+
+  public getActiveDownloadCount(): number {
+    return this.activeDownloads.size;
+  }
+
+  public getActiveDownloadInfo(): Array<{
+    filename: string;
+    url: string;
+    startTime: Date;
+    duration: number;
+  }> {
+    const now = Date.now();
+    return Array.from(this.activeDownloads.values()).map(d => ({
+      filename: d.suggestedFilename,
+      url: d.url,
+      startTime: d.startTime,
+      duration: now - d.startTime.getTime(),
+    }));
+  }
+
+  public getDownloadedFileCount(): number {
+    return this.downloadedFileCount;
+  }
+
   async dispose(): Promise<SessionPage[]> {
+    if (this.activeDownloads.size > 0) {
+      this.logger.log(`Cancelling ${this.activeDownloads.size} active downloads`);
+
+      const pendingDownloads = Array.from(this.activeDownloads.values()).map(d => ({
+        filename: d.suggestedFilename,
+        url: d.url,
+        startTime: d.startTime,
+      }));
+
+      this.logger.warn(`Session closing with pending downloads: ${JSON.stringify(pendingDownloads)}`);
+      this.activeDownloads.clear();
+    }
+
     const entryStack = (() => {
       try {
         const stack = new Error().stack;
@@ -811,14 +934,13 @@ export class Session {
       for (let i = 0; i < browserPages.length; i++) {
         let videoPath = browserPages[i].video_url;
         if (!videoPath) {
-          continue; // 跳过没有视频路径的页面
+          continue;
         }
 
         browserPages[i].video_url = '';
         const filename = "screenshot/" + today + "/" + this.id + "/video_" + path.basename(videoPath);
 
         try {
-          // 检查文件是否存在
           if (!fs.existsSync(videoPath)) {
             this.logger.warn(`Video file not found: ${videoPath}`);
             continue;
@@ -831,7 +953,7 @@ export class Session {
             continue;
           }
 
-          browserPages[i].video_url = await OSSUpload.upload(filename, videoPath);
+          browserPages[i].video_url = await OSSFiles.upload(filename, videoPath);
         } catch (error) {
           this.logger.warn(`Error processing video file ${videoPath}: ${error.message}`);
           await SendAlarm.sendTextMessage('OSS Upload Failed', `OSS Upload Failed, error: ${error.message}`);
@@ -856,7 +978,6 @@ export class Session {
       }
     }
 
-    // 清理超时处理器
     if (this.timeoutHandle) {
       clearTimeout(this.timeoutHandle);
       this.timeoutHandle = null;
@@ -929,7 +1050,7 @@ export class Session {
       'sec-fetch-site',
       'sec-fetch-user',
       'upgrade-insecure-requests',
-      'te', // Chromium-based browsers don't support this
+      'te',
     ];
 
     const filteredHeaders: Record<string, string> = {};

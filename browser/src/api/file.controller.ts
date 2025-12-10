@@ -1,3 +1,5 @@
+/// <reference types="multer" />
+
 import {
     Controller,
     Get,
@@ -16,14 +18,18 @@ import { Response as ExpressResponse } from 'express';
 import { FileApiService } from './file.service';
 import { FILE_CONSTANTS } from '../constants';
 import { createReadStream } from 'fs';
-import { Request } from 'express';
-import * as multer from 'multer';
+import { Runtime } from '../runtime';
+
+type MulterFile = Express.Multer.File;
 
 @Controller('api')
 export class FileController {
-    constructor(private readonly fileApiService: FileApiService) { }
+    constructor(
+        private readonly fileApiService: FileApiService,
+        private readonly runtime: Runtime
+    ) { }
 
-    @Post("/sessions/:sessionId/files")
+    @Post("/session/:sessionId/files")
     @UseInterceptors(AnyFilesInterceptor({
         limits: {
             fileSize: FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION,
@@ -31,23 +37,11 @@ export class FileController {
     }))
     async uploadFile(
         @Param("sessionId") sessionId: string,
-        @UploadedFiles() files: Express.Multer.File[],
+        @UploadedFiles() files: MulterFile[],
         @Body() body: any,
         @Res() res: ExpressResponse
     ) {
         try {
-            // Validate session storage limit
-            const currentSessionSize = await this.fileApiService.getSessionStorageSize(sessionId);
-            const newFilesSize = files.reduce((total, file) => total + file.size, 0);
-
-            if (currentSessionSize + newFilesSize > FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION) {
-                return res.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
-                    success: false,
-                    message: `Session storage limit exceeded. Maximum: ${FILE_CONSTANTS.MAX_FILE_SIZE_PER_SESSION / (1024 * 1024)}MB`
-                });
-            }
-
-            // Process file upload
             if (files && files.length > 0) {
                 const file = files[0];
                 const filePath = body.path || file.originalname || 'uploaded-file';
@@ -57,9 +51,7 @@ export class FileController {
                 return res.status(HttpStatus.OK).json(response);
             }
 
-            // Handle URL download (if provided as string in body.file)
             if (body.file && typeof body.file === 'string') {
-                // TODO: Implement URL download logic
                 return res.status(HttpStatus.NOT_IMPLEMENTED).json({
                     success: false,
                     message: 'URL download not implemented yet'
@@ -74,28 +66,45 @@ export class FileController {
         } catch (error) {
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
-                message: error.message
+                message: 'Failed to upload file'
             });
         }
     }
 
-    @Get("/sessions/:sessionId/files")
+    @Get("/session/:sessionId/files")
     async listFiles(
         @Param("sessionId") sessionId: string,
         @Res() res: ExpressResponse
     ) {
         try {
+            const session = this.runtime.getSession(sessionId);
+
+            if (!session) {
+                return res.status(HttpStatus.NOT_FOUND).json({
+                    success: false,
+                    message: 'Session not found'
+                });
+            }
+
+            const fileCount = session.getDownloadedFileCount();
+
+            if (fileCount === 0) {
+                return res.status(HttpStatus.OK).json({
+                    data: []
+                });
+            }
+
             const response = await this.fileApiService.handleFileList(sessionId);
             return res.status(HttpStatus.OK).json(response);
         } catch (error) {
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
-                message: error.message
+                message: 'Failed to list files'
             });
         }
     }
 
-    @Get("/sessions/:sessionId/files/*")
+    @Get("/session/:sessionId/files/*")
     async downloadFile(
         @Param("sessionId") sessionId: string,
         @Param("*") filePath: string,
@@ -110,14 +119,14 @@ export class FileController {
 
             return stream.pipe(res);
         } catch (error) {
-            return res.status(HttpStatus.NOT_FOUND).json({
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
-                message: 'File not found'
+                message: 'Failed to download file'
             });
         }
     }
 
-    @Head("/sessions/:sessionId/files/*")
+    @Head("/session/:sessionId/files/*")
     async headFile(
         @Param("sessionId") sessionId: string,
         @Param("*") filePath: string,
@@ -132,32 +141,15 @@ export class FileController {
 
             return res.status(HttpStatus.OK).send();
         } catch (error) {
-            return res.status(HttpStatus.NOT_FOUND).send();
-        }
-    }
-
-    @Get("/sessions/:sessionId/files.zip")
-    async downloadArchive(
-        @Param("sessionId") sessionId: string,
-        @Res() res: ExpressResponse
-    ) {
-        try {
-            const { stream, headers } = await this.fileApiService.handleDownloadArchive(sessionId);
-
-            Object.entries(headers).forEach(([key, value]) => {
-                res.header(key, value);
-            });
-
-            return stream.pipe(res);
-        } catch (error) {
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
-                message: error.message
+                message: 'Failed to get file metadata'
             });
         }
     }
 
-    @Delete("/sessions/:sessionId/files/*")
+
+    @Delete("/session/:sessionId/files/*")
     async deleteFile(
         @Param("sessionId") sessionId: string,
         @Param("*") filePath: string,
@@ -169,12 +161,12 @@ export class FileController {
         } catch (error) {
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
-                message: error.message
+                message: 'Failed to delete file'
             });
         }
     }
 
-    @Delete("/sessions/:sessionId/files")
+    @Delete("/session/:sessionId/files")
     async deleteAllFiles(
         @Param("sessionId") sessionId: string,
         @Res() res: ExpressResponse
@@ -185,7 +177,7 @@ export class FileController {
         } catch (error) {
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
                 success: false,
-                message: error.message
+                message: 'Failed to delete all files'
             });
         }
     }

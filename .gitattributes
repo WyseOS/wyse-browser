@@ -1,0 +1,4 @@
+worklets/crawler/src/operations/*.html linguist-vendored
+worklets/crawler/src/template/*.html linguist-vendored
+web/index.html linguist-vendored
+

@@ -29,7 +29,7 @@ import { MetadataType } from '../constants';
 import { SessionContext } from '../session_context';
 import { CreateSessionDto } from './dto/api.session.dto';
 import { Logger } from '@nestjs/common';
-import { OSSUpload } from '../utils/oss';
+import { OSSFiles } from '../utils/oss';
 import { v4 as uuidv4 } from 'uuid';
 import { BatchActionsDto } from './dto/api.action.dto';
 import {
@@ -815,7 +815,7 @@ export class ApiService {
             return responseMessage({ result: '', video_url: '' });
           }
 
-          ossUrl = await OSSUpload.upload(filename, videoPath);
+          ossUrl = await OSSFiles.upload(filename, videoPath);
 
           // 清理视频文件
           try {

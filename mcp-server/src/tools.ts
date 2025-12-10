@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { executeBrowserAction } from './server';
+import { executeBrowserAction } from './index.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 export function registerTools(mcpServer: McpServer): void {
   mcpServer.registerTool(
@@ -9,9 +10,9 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Hello World",
       description: "Prints Hello World"
     },
-    async () => ({
+    async (): Promise<CallToolResult> => ({
       content: [{
-        type: "text",
+        type: "text" as const,
         text: String("Hello World")
       }]
     })
@@ -23,12 +24,12 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Get Current URL",
       description: "Return the current page URL"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         const url = await executeBrowserAction("url");
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: String(url)
           }]
         };
@@ -36,7 +37,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("URL Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error retrieving URL: ${error.message}`
           }]
         };
@@ -53,18 +54,18 @@ export function registerTools(mcpServer: McpServer): void {
         url: z.string().describe('The URL to navigate to'),
       },
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const url = params?.url;
         if (!url) {
           throw new Error("URL parameter is required");
         }
-        
+
         await executeBrowserAction("visit", { url });
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully navigated to ${url}`
           }]
         };
@@ -72,7 +73,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Visit Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error visiting URL: ${error.message}`
           }]
         };
@@ -90,19 +91,19 @@ export function registerTools(mcpServer: McpServer): void {
         num: z.number().int().describe('Number of steps to navigate. Positive for forward, negative for backward')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const num = params?.num;
         if (num === undefined) {
           throw new Error("num parameter is required");
         }
-        
+
         await executeBrowserAction("history", { num });
-        
+
         const direction = num > 0 ? "forward" : num < 0 ? "backward" : "no change";
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully navigated ${Math.abs(num)} steps ${direction} in history`
           }]
         };
@@ -110,7 +111,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("History Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error navigating history: ${error.message}`
           }]
         };
@@ -128,18 +129,18 @@ export function registerTools(mcpServer: McpServer): void {
         search_key: z.string().describe('The search keywords')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const searchKey = params?.search_key;
         if (!searchKey) {
           throw new Error("search_key parameter is required");
         }
-        
+
         await executeBrowserAction("search", { search_key: searchKey });
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully searched for: ${searchKey}`
           }]
         };
@@ -147,7 +148,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Search Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error performing search: ${error.message}`
           }]
         };
@@ -162,13 +163,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Refresh Page",
       description: "Refresh the current page"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("refresh_page");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully refreshed the page"
           }]
         };
@@ -176,7 +177,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Refresh Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error refreshing page: ${error.message}`
           }]
         };
@@ -196,24 +197,24 @@ export function registerTools(mcpServer: McpServer): void {
         y: z.number().optional().describe('Y coordinate for click')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("click", params);
-        
+
         let message = "Successfully clicked ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -221,7 +222,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Click Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error clicking element: ${error.message}`
           }]
         };
@@ -241,24 +242,24 @@ export function registerTools(mcpServer: McpServer): void {
         y: z.number().optional().describe('Y coordinate for double click')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("double_click", params);
-        
+
         let message = "Successfully double clicked ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -266,7 +267,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Double Click Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error double clicking element: ${error.message}`
           }]
         };
@@ -289,21 +290,21 @@ export function registerTools(mcpServer: McpServer): void {
         delete_existing_text: z.boolean().optional().describe('Whether to delete existing text before input')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.text) {
           throw new Error("text parameter is required");
         }
-        
+
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("text", params);
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully input text: "${params.text}"`
           }]
         };
@@ -311,7 +312,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Text Input Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error inputting text: ${error.message}`
           }]
         };
@@ -326,13 +327,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Scroll Up",
       description: "Scroll the page up by one page"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("scroll_up");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully scrolled up"
           }]
         };
@@ -340,7 +341,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Scroll Up Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error scrolling up: ${error.message}`
           }]
         };
@@ -355,13 +356,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Scroll Down",
       description: "Scroll the page down by one page"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("scroll_down");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully scrolled down"
           }]
         };
@@ -369,7 +370,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Scroll Down Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error scrolling down: ${error.message}`
           }]
         };
@@ -387,18 +388,18 @@ export function registerTools(mcpServer: McpServer): void {
         time: z.number().positive().describe('Time to wait in seconds')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const time = params?.time;
         if (!time) {
           throw new Error("time parameter is required");
         }
-        
+
         await executeBrowserAction("wait", { time });
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully waited for ${time} seconds`
           }]
         };
@@ -406,7 +407,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Wait Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error waiting: ${error.message}`
           }]
         };
@@ -427,19 +428,19 @@ export function registerTools(mcpServer: McpServer): void {
         ]).describe('Key or array of keys to press')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const keys = params?.keys;
         if (!keys) {
           throw new Error("keys parameter is required");
         }
-        
+
         await executeBrowserAction("key_press", { keys });
-        
+
         const keysStr = Array.isArray(keys) ? keys.join(', ') : keys;
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully pressed key(s): ${keysStr}`
           }]
         };
@@ -447,7 +448,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Key Press Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error pressing key(s): ${error.message}`
           }]
         };
@@ -467,24 +468,24 @@ export function registerTools(mcpServer: McpServer): void {
         y: z.number().optional().describe('Y coordinate for hover')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("hover", params);
-        
+
         let message = "Successfully hovered over ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -492,7 +493,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Hover Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error hovering: ${error.message}`
           }]
         };
@@ -510,18 +511,18 @@ export function registerTools(mcpServer: McpServer): void {
         script: z.string().describe('JavaScript code to execute')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const script = params?.script;
         if (!script) {
           throw new Error("script parameter is required");
         }
-        
+
         const result = await executeBrowserAction("evaluate", { script });
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `JavaScript execution result: ${result}`
           }]
         };
@@ -529,7 +530,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Evaluate Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error executing JavaScript: ${error.message}`
           }]
         };
@@ -544,13 +545,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Get Page Content",
       description: "Get the HTML content of the current page"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         const content = await executeBrowserAction("content");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: content
           }]
         };
@@ -558,7 +559,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Content Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error getting page content: ${error.message}`
           }]
         };
@@ -576,17 +577,17 @@ export function registerTools(mcpServer: McpServer): void {
         url: z.string().optional().describe('URL to navigate to in the new tab')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("create_tab", params || {});
-        
-        const message = params?.url 
+
+        const message = params?.url
           ? `Successfully created new tab with URL: ${params.url}`
           : "Successfully created new blank tab";
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -594,7 +595,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Create Tab Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error creating tab: ${error.message}`
           }]
         };
@@ -612,18 +613,18 @@ export function registerTools(mcpServer: McpServer): void {
         tab_index: z.number().int().nonnegative().describe('Index of the tab to switch to')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const tabIndex = params?.tab_index;
         if (tabIndex === undefined) {
           throw new Error("tab_index parameter is required");
         }
-        
+
         await executeBrowserAction("switch_tab", { tab_index: tabIndex });
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully switched to tab ${tabIndex}`
           }]
         };
@@ -631,7 +632,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Switch Tab Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error switching tab: ${error.message}`
           }]
         };
@@ -649,18 +650,18 @@ export function registerTools(mcpServer: McpServer): void {
         tab_index: z.number().int().nonnegative().describe('Index of the tab to close')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         const tabIndex = params?.tab_index;
         if (tabIndex === undefined) {
           throw new Error("tab_index parameter is required");
         }
-        
+
         await executeBrowserAction("close_tab", { tab_index: tabIndex });
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully closed tab ${tabIndex}`
           }]
         };
@@ -668,7 +669,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Close Tab Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error closing tab: ${error.message}`
           }]
         };
@@ -683,13 +684,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Get Tabs Information",
       description: "Get information about all open tabs"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         const tabsInfo = await executeBrowserAction("tabs_info");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: tabsInfo
           }]
         };
@@ -697,7 +698,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Tabs Info Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error getting tabs information: ${error.message}`
           }]
         };
@@ -712,13 +713,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Take Screenshot",
       description: "Take a screenshot of the current page"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         const screenshot = await executeBrowserAction("screenshot");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Screenshot taken (base64 encoded): ${screenshot.substring(0, 100)}...`
           }]
         };
@@ -726,7 +727,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Screenshot Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error taking screenshot: ${error.message}`
           }]
         };
@@ -747,32 +748,32 @@ export function registerTools(mcpServer: McpServer): void {
         button: z.enum(["left", "right", "middle"]).optional().describe('Mouse button to click')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("click_full", params);
-        
+
         let message = "Successfully clicked ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         if (params.hold) {
           message += ` with hold time ${params.hold}s`;
         }
-        
+
         if (params.button) {
           message += ` using ${params.button} button`;
         }
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -780,7 +781,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Click Full Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error clicking element: ${error.message}`
           }]
         };
@@ -801,28 +802,28 @@ export function registerTools(mcpServer: McpServer): void {
         page_number: z.number().int().positive().describe('Number of pages to scroll up')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         if (!params?.page_number) {
           throw new Error("page_number parameter is required");
         }
-        
+
         await executeBrowserAction("scroll_element_up", params);
-        
+
         let message = `Successfully scrolled up ${params.page_number} page(s) on `;
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `element at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -830,7 +831,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Scroll Element Up Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error scrolling element up: ${error.message}`
           }]
         };
@@ -851,28 +852,28 @@ export function registerTools(mcpServer: McpServer): void {
         page_number: z.number().int().positive().describe('Number of pages to scroll down')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         if (!params?.page_number) {
           throw new Error("page_number parameter is required");
         }
-        
+
         await executeBrowserAction("scroll_element_down", params);
-        
+
         let message = `Successfully scrolled down ${params.page_number} page(s) on `;
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `element at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -880,7 +881,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Scroll Element Down Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error scrolling element down: ${error.message}`
           }]
         };
@@ -898,17 +899,17 @@ export function registerTools(mcpServer: McpServer): void {
         element_id: z.string().describe('The element ID to scroll to')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id) {
           throw new Error("element_id parameter is required");
         }
-        
+
         await executeBrowserAction("scroll_to", params);
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully scrolled to element with ID: ${params.element_id}`
           }]
         };
@@ -916,7 +917,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Scroll To Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error scrolling to element: ${error.message}`
           }]
         };
@@ -931,13 +932,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Initialize JavaScript",
       description: "Initialize JavaScript on the current page"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("init_js");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully initialized JavaScript on the page"
           }]
         };
@@ -945,7 +946,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Init JS Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error initializing JavaScript: ${error.message}`
           }]
         };
@@ -960,13 +961,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Wait For Page Load",
       description: "Wait for the page to reach load state"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("wait_for_load_state");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully waited for page load state"
           }]
         };
@@ -974,7 +975,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Wait For Load State Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error waiting for load state: ${error.message}`
           }]
         };
@@ -989,13 +990,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Cleanup Animations",
       description: "Remove animation effects from the page"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("cleanup_animations");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully cleaned up animations"
           }]
         };
@@ -1003,7 +1004,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Cleanup Animations Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error cleaning up animations: ${error.message}`
           }]
         };
@@ -1021,17 +1022,17 @@ export function registerTools(mcpServer: McpServer): void {
         element_id: z.string().describe('The element ID to preview')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id) {
           throw new Error("element_id parameter is required");
         }
-        
+
         await executeBrowserAction("preview_action", params);
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Successfully previewed action on element with ID: ${params.element_id}`
           }]
         };
@@ -1039,7 +1040,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Preview Action Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error previewing action: ${error.message}`
           }]
         };
@@ -1057,17 +1058,17 @@ export function registerTools(mcpServer: McpServer): void {
         content: z.string().describe('The HTML content to set')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.content) {
           throw new Error("content parameter is required");
         }
-        
+
         await executeBrowserAction("set_content", params);
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully set page content"
           }]
         };
@@ -1075,7 +1076,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Set Content Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error setting page content: ${error.message}`
           }]
         };
@@ -1090,13 +1091,13 @@ export function registerTools(mcpServer: McpServer): void {
       title: "Ensure Page Ready",
       description: "Ensure the page is fully loaded and ready"
     },
-    async () => {
+    async (): Promise<CallToolResult> => {
       try {
         await executeBrowserAction("ensure_page_ready");
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully ensured page is ready"
           }]
         };
@@ -1104,7 +1105,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Ensure Page Ready Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error ensuring page ready: ${error.message}`
           }]
         };
@@ -1124,24 +1125,24 @@ export function registerTools(mcpServer: McpServer): void {
         y: z.number().optional().describe('Y coordinate for selection')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.element_id && (params?.x === undefined || params?.y === undefined)) {
           throw new Error("Either element_id or both x and y coordinates must be provided");
         }
-        
+
         await executeBrowserAction("select_option", params);
-        
+
         let message = "Successfully selected ";
         if (params.element_id) {
           message += `element with ID: ${params.element_id}`;
         } else {
           message += `element at coordinates (${params.x}, ${params.y})`;
         }
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: message
           }]
         };
@@ -1149,7 +1150,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Select Option Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error selecting option: ${error.message}`
           }]
         };
@@ -1173,17 +1174,17 @@ export function registerTools(mcpServer: McpServer): void {
         ]).describe('Path to drag along, as array of points or JSON string')
       }
     },
-    async (params: any) => {
+    async (params: any): Promise<CallToolResult> => {
       try {
         if (!params?.drag_path) {
           throw new Error("drag_path parameter is required");
         }
-        
+
         await executeBrowserAction("drag", params);
-        
+
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: "Successfully performed drag operation"
           }]
         };
@@ -1191,7 +1192,7 @@ export function registerTools(mcpServer: McpServer): void {
         console.error("Drag Tool Error:", error);
         return {
           content: [{
-            type: "text",
+            type: "text" as const,
             text: `Error performing drag operation: ${error.message}`
           }]
         };
