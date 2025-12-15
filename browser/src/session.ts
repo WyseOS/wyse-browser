@@ -85,11 +85,11 @@ export class Session {
   }> = new Map();
 
   private downloadedFileCount: number = 0;
-  private readonly downloadUploadService: DownloadService;
+  private readonly downloadService: DownloadService;
 
   constructor() {
     this.lastActionTimestamp = Math.floor(Date.now() / 1000);
-    this.downloadUploadService = new DownloadService();
+    this.downloadService = new DownloadService();
   }
 
   public async waitForInitialization(): Promise<void> {
@@ -690,20 +690,18 @@ export class Session {
   }
 
   private async setupDownloadHandler(): Promise<void> {
-    this.browserContext.on('page', (page) => {
-      this.setupPageDownloadHandler(page);
-    });
+    const setupPage = (page: Page) => {
+      page.on('download', (download) => {
+        this.handleDownloadAsync(download).catch(error => {
+          this.logger.error(`Unhandled download error: ${error.message}`);
+        });
+      });
+    };
+
+    this.browserContext.on('page', setupPage);
 
     const pages = await this.browserContext.pages();
-    pages.forEach(page => this.setupPageDownloadHandler(page));
-  }
-
-  private setupPageDownloadHandler(page: Page): void {
-    page.on('download', (download) => {
-      this.handleDownloadAsync(download).catch(error => {
-        this.logger.error(`Unhandled download error: ${error.message}`);
-      });
-    });
+    pages.forEach(setupPage);
   }
 
   private async handleDownloadAsync(download: any): Promise<void> {
@@ -758,7 +756,7 @@ export class Session {
         throw new Error('Failed to create read stream from download');
       }
 
-      const result = await this.downloadUploadService.uploadDownloadedFile({
+      const result = await this.downloadService.uploadDownloadedFile({
         sessionId: this.id,
         suggestedFilename,
         readStream,

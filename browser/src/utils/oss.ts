@@ -56,7 +56,7 @@ export class OSSClient {
 
     getSessionPath(sessionId: string): string {
         let today = GetDateYYYYMMDD();
-        return `${FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX}/${today}/session/${sessionId}/files/`;
+        return `${FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX}/session/${today}/${sessionId}/files/`;
     }
 
     getObjectPath(sessionId: string, filename: string): string {
