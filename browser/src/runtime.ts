@@ -25,7 +25,7 @@ export class Runtime {
     private page_devtool_frontend_host: string;
     private page_devtool_ws_host: string;
     private proxy: { server: string, username: string, password: string };
-
+    private captcha: { captcha_api_key: string, proxy: string };
     private actionInstance: BrowserAction = new BrowserAction();
 
     // 添加并发控制属性
@@ -50,6 +50,7 @@ export class Runtime {
         this.page_devtool_frontend_host = engineConfig.browser.page_devtool_frontend_host;
         this.page_devtool_ws_host = engineConfig.browser.page_devtool_ws_host;
         this.proxy = engineConfig.browser.proxy;
+        this.captcha = engineConfig.browser.captcha;
     }
 
     /**
@@ -304,7 +305,7 @@ export class Runtime {
         }
 
         const params: BrowserActionParameters = data;
-        return await this.actionInstance.action(session, page_id, actionName, params);
+        return await this.actionInstance.action(session, page_id, actionName, params, this.captcha.captcha_api_key, this.captcha.proxy);
     }
 
     async batchBrowserAction(sessionId: string, pageId: number, actions: Array<{ action_name: string, data: any }>): Promise<Array<string>> {
@@ -322,7 +323,7 @@ export class Runtime {
 
         for (const action of actions) {
             try {
-                const result = await this.actionInstance.action(session, pageId, action.action_name, action.data);
+                const result = await this.actionInstance.action(session, pageId, action.action_name, action.data, this.captcha.captcha_api_key, this.captcha.proxy);
                 results.push(result);
             } catch (error) {
                 this.logger.error(`Action failed in batch execution: ${error.message}`);

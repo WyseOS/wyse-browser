@@ -1,4 +1,5 @@
 import { Session } from './session';
+import axios from 'axios';
 import { BrowserActionParameters } from "./interfaces/iaction";
 import { BrowserActionType, DefaultWidth, DefaultHeight, DefaultTimeout, DefaultElementTimeout, GetInitJS } from "./constants/index";
 import { Logger } from '@nestjs/common';
@@ -18,7 +19,7 @@ export class BrowserAction {
 
     private page: Page;
 
-    async action(session: Session, page_id: number, action_name: string, params: BrowserActionParameters): Promise<string> {
+    async action(session: Session, page_id: number, action_name: string, params: BrowserActionParameters, captcha_api_key: string, proxy: string): Promise<string> {
         const parameters: Map<string, string | number> = new Map();
         for (const [paramName, paramValue] of Object.entries(params)) {
             parameters.set(paramName, paramValue);
@@ -136,6 +137,9 @@ export class BrowserAction {
                 case (BrowserActionType.Screenshot):
                     result = await this.action_screenshot(page);
                     break
+                case (BrowserActionType.Capsolver):
+                    result = await this.action_capsolver(page, captcha_api_key, proxy);
+                    break
                 default:
                     const error_msg = `Browser Action ${action_name} not support yet, Session id: ${session.id}`;
                     this.logger.log(error_msg);
@@ -170,10 +174,10 @@ export class BrowserAction {
         try {
             // Check if page context exists
             if (!this.page) {
-            throw new Error("Page context is not available");
+                throw new Error("Page context is not available");
             }
-            
-            const url = await page.url();            
+
+            const url = await page.url();
             return url;
         } catch (error) {
             console.error("Error in action_url:", error);
@@ -1096,7 +1100,6 @@ export class BrowserAction {
         }
     }
 
-
     private isSpecialBrowserPage(url: string): boolean {
         if (url === 'about:blank') return true;
 
@@ -1215,4 +1218,202 @@ export class BrowserAction {
 
         await this.init_js(page);
     }
+
+    private async detectCaptcha(page: any): Promise<{ captchaInfo: any, turnstileName: string }> {
+        // 1. Detect Captcha
+        let captchaInfo = await page.evaluate(() => {
+            const getParam = (url: string, name: string) => {
+                const match = new RegExp('[?&]' + name + '=([^&]*)').exec(url);
+                return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+            };
+
+            // AWS WAF
+            if (document.querySelector('[name="aws-waf-token"]')) {
+                return { type: 'AwsWaf' };
+            }
+
+            // Cloudflare Challenge
+            if (document.title.includes('Just a moment...') ||
+                document.body.innerText.includes('Checking your browser') ||
+                document.querySelector('#challenge-running')) {
+                return { type: 'CloudflareChallenge' };
+            }
+
+            // Turnstile
+            const turnstile = document.querySelector('.cf-turnstile') || document.querySelector('[data-cf-turnstile]');
+            if (turnstile) {
+                const key = turnstile.getAttribute('data-sitekey');
+                if (key) return { type: 'Turnstile', websiteKey: key };
+            }
+
+            // ReCaptcha
+            const gRecaptcha = document.querySelector('.g-recaptcha');
+            if (gRecaptcha) {
+                const k = gRecaptcha.getAttribute('data-sitekey');
+                if (k) return { type: 'ReCaptchaV2', websiteKey: k };
+            }
+
+            const frame = document.querySelector('iframe[src*="recaptcha/api2/anchor"]') as HTMLIFrameElement;
+            if (frame) {
+                const k = getParam(frame.src, 'k');
+                if (k) return { type: 'ReCaptchaV2', websiteKey: k };
+            }
+
+            return null;
+        });
+
+        // 2. If not found in page, check frames via Playwright API (handles cross-origin iframes)
+        let turnstileName = '[name="cf-turnstile-response"]';
+        if (!captchaInfo) {
+            const frames = page.frames();
+            for (const frame of frames) {
+                try {
+                    const url = frame.url();
+                    if (url.includes('challenges.cloudflare.com')) {
+                        const srcs = url.split("/");
+                        let keyLength = 0;
+                        let key = "";
+                        for (let src of srcs) {
+                            src = src.trim();
+                            if (src.length > keyLength && src !== "challenges.cloudflare.com") {
+                                keyLength = src.length;
+                                key = src;
+                            }
+                        }
+                        if (key) {
+                            turnstileName = '[name="cf_challenge_response"]';
+                            captchaInfo = { type: 'Turnstile', websiteKey: key };
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore frame access errors
+                }
+            }
+        }
+        return { captchaInfo, turnstileName };
+    }
+
+    private async solveCaptchaTask(page: any, captchaInfo: any, captcha_api_key: string, proxy: string): Promise<any> {
+        const websiteURL = page.url();
+        let taskPayload: any = {
+            websiteURL: websiteURL
+        };
+
+        if (captchaInfo.type === 'ReCaptchaV2') {
+            taskPayload.type = 'ReCaptchaV2TaskProxyLess';
+            taskPayload.websiteKey = captchaInfo.websiteKey;
+        } else if (captchaInfo.type === 'Turnstile') {
+            taskPayload.type = 'AntiTurnstileTaskProxyLess';
+            taskPayload.websiteKey = captchaInfo.websiteKey;
+        } else if (captchaInfo.type === 'AwsWaf') {
+            taskPayload.type = 'AntiAwsWafTaskProxyLess';
+            taskPayload.websiteURL = websiteURL;
+        } else if (captchaInfo.type === 'CloudflareChallenge') {
+            if (!proxy) {
+                this.logger.warn("Cloudflare Challenge detected but no proxy provided. Skipping.");
+                return "no proxy";
+            }
+
+            taskPayload.type = 'AntiCloudflareTask';
+            taskPayload.websiteURL = websiteURL;
+            taskPayload.proxy = proxy;
+        }
+
+        // check if we have valid payload
+        if (!taskPayload.type) return "unsupported captcha type";
+
+        // Create Task
+        const createRes = await axios.post('https://api.capsolver.com/createTask', {
+            clientKey: captcha_api_key,
+            task: taskPayload
+        });
+
+        if (createRes.data.errorId !== 0) {
+            return `Capsolver createTask failed: ${createRes.data.errorDescription}`;
+        }
+
+        const taskId = createRes.data.taskId;
+        this.logger.log(`Task created: ${taskId}, waiting for solution...`);
+
+        // Poll
+        let solution = null;
+        for (let i = 0; i < 60; i++) { // 2 mins max
+            await page.waitForTimeout(2000);
+            const res = await axios.post('https://api.capsolver.com/getTaskResult', {
+                clientKey: captcha_api_key,
+                taskId: taskId
+            });
+
+            if (res.data.status === 'ready') {
+                solution = res.data.solution;
+                break;
+            }
+            if (res.data.status === 'failed') {
+                return `Capsolver Task failed: ${res.data.errorDescription}`;
+            }
+        }
+
+        if (!solution) return "Capsolver Timeout waiting for captcha solution";
+        return solution;
+    }
+
+    async action_capsolver(page: any, captcha_api_key: string, proxy: string): Promise<string> {
+        try {
+            const { captchaInfo, turnstileName } = await this.detectCaptcha(page);
+            if (!captchaInfo) {
+                this.logger.log("No supported captcha detected.");
+                return "no captcha";
+            }
+
+            this.logger.log(`Detected captcha: ${JSON.stringify(captchaInfo)}`);
+            const solution = await this.solveCaptchaTask(page, captchaInfo, captcha_api_key, proxy);
+            if (typeof solution === 'string') {
+                return solution; // Error message
+            }
+
+            this.logger.log("Captcha solved, injecting solution...");
+            const websiteURL = page.url();
+
+            // Inject
+            if (captchaInfo.type === 'ReCaptchaV2') {
+                await page.evaluate((token) => {
+                    const el = document.getElementById('g-recaptcha-response');
+                    if (el) el.innerHTML = token;
+                }, solution.gRecaptchaResponse);
+            } else if (captchaInfo.type === 'Turnstile') {
+                await page.evaluate(({ token, name }) => {
+                    const el = document.querySelector(name);
+                    if (el) (el as HTMLInputElement).value = token;
+                }, { token: solution.token, name: turnstileName });
+            } else if (captchaInfo.type === 'AwsWaf') {
+                if (solution.cookie) {
+                    const cookies = solution.cookie.split(';').map(c => {
+                        const [name, value] = c.trim().split('=');
+                        return { name, value, url: websiteURL };
+                    });
+                    await page.context().addCookies(cookies);
+                    await page.reload();
+                    return "";
+                }
+            } else if (captchaInfo.type === 'CloudflareChallenge') {
+                if (solution.token) {
+                    const cookies = [{
+                        name: 'cf_clearance',
+                        value: solution.token,
+                        url: websiteURL
+                    }];
+                    await page.context().addCookies(cookies);
+                    await page.reload();
+                    return "";
+                }
+            }
+
+            return "";
+        } catch (error) {
+            this.logger.error(`action_capsolver failed: ${error.message}`);
+            return error;
+        }
+    }
+
 }
