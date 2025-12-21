@@ -98,6 +98,7 @@ export enum BrowserActionType {
   SetContent = 'set_content',
   Screenshot = 'screenshot',
   Capsolver = 'capsolver',
+  Batch = 'batch',
 }
 
 /**

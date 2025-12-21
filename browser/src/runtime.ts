@@ -307,30 +307,4 @@ export class Runtime {
         const params: BrowserActionParameters = data;
         return await this.actionInstance.action(session, page_id, actionName, params, this.captcha.captcha_api_key, this.captcha.proxy);
     }
-
-    async batchBrowserAction(sessionId: string, pageId: number, actions: Array<{ action_name: string, data: any }>): Promise<Array<string>> {
-        const session = this.sessions.get(sessionId);
-        if (!session) {
-            throw new Error(`Session ${sessionId} not found`);
-        }
-
-        const pages = await session.getPages();
-        if (pageId < 0 || pageId >= pages.length) {
-            throw new Error(`Page ID ${pageId} is out of range. Available page range: 0-${pages.length - 1}`);
-        }
-
-        const results: string[] = [];
-
-        for (const action of actions) {
-            try {
-                const result = await this.actionInstance.action(session, pageId, action.action_name, action.data, this.captcha.captcha_api_key, this.captcha.proxy);
-                results.push(result);
-            } catch (error) {
-                this.logger.error(`Action failed in batch execution: ${error.message}`);
-                throw error; // Stop execution on first error
-            }
-        }
-
-        return results;
-    }
 }
