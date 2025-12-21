@@ -20,7 +20,7 @@ export class BrowserAction {
     private page: Page;
 
     async action(session: Session, page_id: number, action_name: string, params: BrowserActionParameters, captcha_api_key: string, proxy: string): Promise<string> {
-        const parameters: Map<string, string | number> = new Map();
+        const parameters: Map<string, any> = new Map();
         for (const [paramName, paramValue] of Object.entries(params)) {
             parameters.set(paramName, paramValue);
         }
@@ -139,6 +139,9 @@ export class BrowserAction {
                     break
                 case (BrowserActionType.Capsolver):
                     result = await this.action_capsolver(page, captcha_api_key, proxy);
+                    break
+                case (BrowserActionType.Batch):
+                    result = await this.action_batch(session, page_id, params);
                     break
                 default:
                     const error_msg = `Browser Action ${action_name} not support yet, Session id: ${session.id}`;
@@ -1359,6 +1362,9 @@ export class BrowserAction {
     }
 
     async action_capsolver(page: any, captcha_api_key: string, proxy: string): Promise<string> {
+        if (!captcha_api_key || !proxy) {
+            return "";
+        }
         try {
             const { captchaInfo, turnstileName } = await this.detectCaptcha(page);
             if (!captchaInfo) {
@@ -1414,6 +1420,41 @@ export class BrowserAction {
             this.logger.error(`action_capsolver failed: ${error.message}`);
             return error;
         }
+    }
+
+    // Batch Action
+    async action_batch(session: Session, page_id: number, params: any) {
+        const actions = params.actions || [];
+        const results: Array<{ action_name: string; result: string; status: 'success' | 'error'; error?: string }> = [];
+        let overall_status: 'completed' | 'partial' | 'failed' = 'completed';
+
+        for (const actionData of actions) {
+            const { action_name, data } = actionData;
+            try {
+                const result = await this.action(session, page_id, action_name, data, "", "");
+                results.push({
+                    action_name,
+                    result,
+                    status: 'success'
+                });
+            } catch (error) {
+                results.push({
+                    action_name,
+                    result: '',
+                    status: 'error',
+                    error: error.message
+                });
+                overall_status = 'failed';
+                break;
+            }
+        }
+
+        return JSON.stringify({
+            session_id: params.session_id || session.id,
+            page_id: params.page_id ?? page_id,
+            results,
+            overall_status
+        });
     }
 
 }
