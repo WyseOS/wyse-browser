@@ -996,7 +996,7 @@ export class BrowserAction {
         }
 
         try {
-            await page.waitForLoadState('load', { timeout: DefaultTimeout });
+            await page.waitForLoadState('domcontentloaded', { timeout: DefaultTimeout });
         } catch (error) {
             this.logger.error(`wait_for_load_state, Page load timeout, page might not be loaded, error: ${error.message}`);
             throw error;
@@ -1206,7 +1206,7 @@ export class BrowserAction {
         }
 
         try {
-            await page.waitForLoadState('load', { timeout: DefaultTimeout });
+            await page.waitForLoadState('domcontentloaded', { timeout: DefaultTimeout });
         } catch (error) {
             this.logger.error(`ensure_page_ready, Page load timeout, page might not be loaded, error: ${error.message}`);
             // ignore error and stop page loading
