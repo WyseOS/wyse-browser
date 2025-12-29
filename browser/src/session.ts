@@ -600,28 +600,23 @@ export class Session {
     if (!this.page) {
       throw new Error('Page is null or undefined');
     }
-    const shortTimeout = 5000;
-    const fallbackTimeout = 3000;
-    try {
-      await this.page.waitForLoadState('domcontentloaded', { timeout: shortTimeout });
 
-      await this.page.waitForLoadState('networkidle', { timeout: fallbackTimeout });
-    } catch (error) {
-      this.logger.warn(`Fast page load check failed, trying load state: ${error.message}`);
-
+    const currentUrl = this.page.url();
+    if (!this.isSpecialBrowserPage(currentUrl)) {
       try {
-        await this.page.waitForLoadState('load', { timeout: shortTimeout });
-      } catch (loadError) {
-        this.logger.warn(`Page load timeout, attempting to stop loading: ${loadError.message}`);
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+      } catch (error) {
+        this.logger.warn(`DOM not ready, forcing stop: ${error.message}`);
         try {
-          await this.page.evaluate(async () => {
-            await this.page.evaluate("window.stop()");
-            await this.page.waitForTimeout(1000)
+          await this.page.evaluate(() => window.stop());
+          await this.page.waitForTimeout(500);
+          await this.page.evaluate(() => {
             const problematicElements = document.querySelectorAll('iframe, embed, object');
             problematicElements.forEach(el => {
               try {
                 el.remove();
               } catch (e) {
+                // Ignore removal errors
               }
             });
           });
@@ -630,6 +625,7 @@ export class Session {
         }
       }
     }
+
     try {
       const viewport = await this.page.viewportSize();
       if (viewport && (viewport.width !== this.width || viewport.height !== this.height)) {
