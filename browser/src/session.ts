@@ -75,6 +75,7 @@ export class Session {
   private initializationStartTime: Date = null;
   private initializationTimeout: number = 30000;
   private isInitializationCancelled: boolean = false;
+  private isDisposing: boolean = false;
   private timeoutHandle: NodeJS.Timeout = null;
 
   private activeDownloads: Map<string, {
@@ -85,11 +86,11 @@ export class Session {
   }> = new Map();
 
   private downloadedFileCount: number = 0;
-  private readonly downloadUploadService: DownloadService;
+  private readonly downloadService: DownloadService;
 
   constructor() {
     this.lastActionTimestamp = Math.floor(Date.now() / 1000);
-    this.downloadUploadService = new DownloadService();
+    this.downloadService = new DownloadService();
   }
 
   public async waitForInitialization(): Promise<void> {
@@ -599,28 +600,23 @@ export class Session {
     if (!this.page) {
       throw new Error('Page is null or undefined');
     }
-    const shortTimeout = 5000;
-    const fallbackTimeout = 3000;
-    try {
-      await this.page.waitForLoadState('domcontentloaded', { timeout: shortTimeout });
 
-      await this.page.waitForLoadState('networkidle', { timeout: fallbackTimeout });
-    } catch (error) {
-      this.logger.warn(`Fast page load check failed, trying load state: ${error.message}`);
-
+    const currentUrl = this.page.url();
+    if (!this.isSpecialBrowserPage(currentUrl)) {
       try {
-        await this.page.waitForLoadState('load', { timeout: shortTimeout });
-      } catch (loadError) {
-        this.logger.warn(`Page load timeout, attempting to stop loading: ${loadError.message}`);
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+      } catch (error) {
+        this.logger.warn(`DOM not ready, forcing stop: ${error.message}`);
         try {
-          await this.page.evaluate(async () => {
-            await this.page.evaluate("window.stop()");
-            await this.page.waitForTimeout(1000)
+          await this.page.evaluate(() => window.stop());
+          await this.page.waitForTimeout(500);
+          await this.page.evaluate(() => {
             const problematicElements = document.querySelectorAll('iframe, embed, object');
             problematicElements.forEach(el => {
               try {
                 el.remove();
               } catch (e) {
+                // Ignore removal errors
               }
             });
           });
@@ -629,6 +625,7 @@ export class Session {
         }
       }
     }
+
     try {
       const viewport = await this.page.viewportSize();
       if (viewport && (viewport.width !== this.width || viewport.height !== this.height)) {
@@ -690,20 +687,18 @@ export class Session {
   }
 
   private async setupDownloadHandler(): Promise<void> {
-    this.browserContext.on('page', (page) => {
-      this.setupPageDownloadHandler(page);
-    });
+    const setupPage = (page: Page) => {
+      page.on('download', (download) => {
+        this.handleDownloadAsync(download).catch(error => {
+          this.logger.error(`Unhandled download error: ${error.message}`);
+        });
+      });
+    };
+
+    this.browserContext.on('page', setupPage);
 
     const pages = await this.browserContext.pages();
-    pages.forEach(page => this.setupPageDownloadHandler(page));
-  }
-
-  private setupPageDownloadHandler(page: Page): void {
-    page.on('download', (download) => {
-      this.handleDownloadAsync(download).catch(error => {
-        this.logger.error(`Unhandled download error: ${error.message}`);
-      });
-    });
+    pages.forEach(setupPage);
   }
 
   private async handleDownloadAsync(download: any): Promise<void> {
@@ -758,7 +753,7 @@ export class Session {
         throw new Error('Failed to create read stream from download');
       }
 
-      const result = await this.downloadUploadService.uploadDownloadedFile({
+      const result = await this.downloadService.uploadDownloadedFile({
         sessionId: this.id,
         suggestedFilename,
         readStream,
@@ -829,167 +824,165 @@ export class Session {
   }
 
   async dispose(): Promise<SessionPage[]> {
-    if (this.activeDownloads.size > 0) {
-      this.logger.log(`Cancelling ${this.activeDownloads.size} active downloads`);
-
-      const pendingDownloads = Array.from(this.activeDownloads.values()).map(d => ({
-        filename: d.suggestedFilename,
-        url: d.url,
-        startTime: d.startTime,
-      }));
-
-      this.logger.warn(`Session closing with pending downloads: ${JSON.stringify(pendingDownloads)}`);
-      this.activeDownloads.clear();
-    }
-
-    const entryStack = (() => {
-      try {
-        const stack = new Error().stack;
-        if (!stack) {
-          return 'stack unavailable';
-        }
-        const parts = stack.split('\n').slice(2, 6);
-        return parts.join(' | ');
-      } catch (_) {
-        return 'stack unavailable';
-      }
-    })();
-    const elapsedSinceCreateMs = this.createdAt ? (Date.now() - this.createdAt.getTime()) : -1;
-    this.logger.log(`dispose() called. id: ${this.id}, isInitialized: ${this.isInitialized}, hasInitPromise: ${!!this.asyncInitPromise}, isInitializationCancelled: ${this.isInitializationCancelled}, createdAt: ${this.createdAt?.toISOString()}, elapsedSinceCreateMs: ${elapsedSinceCreateMs}, lastActionTs: ${this.lastActionTimestamp}, wsPort: ${this.wsPort}`);
-    this.logger.log(`dispose() call stack (trimmed): ${entryStack}`);
-
-    if (!this.isInitialized && !this.asyncInitPromise) {
-      this.logger.warn(`dispose() invoked while session was never initialized. id: ${this.id}`);
+    if (this.isDisposing) {
+      this.logger.warn(`dispose() called while already disposing, id: ${this.id}`);
       return [];
     }
 
-    if (!this.isInitialized && this.asyncInitPromise) {
-      this.logger.log(`Session ${this.id} dispose called during initialization - cancelling initialization`);
-      this.isInitializationCancelled = true;
-
-      try {
-        await Promise.race([
-          this.asyncInitPromise,
-          new Promise(resolve => setTimeout(resolve, 5000))
-        ]);
-      } catch (error) {
-        this.logger.warn(`Initialization cancellation completed with error: ${error.message}`);
-      }
-
-      await this.cleanupFailedInitialization();
-      return [];
-    }
-
-    if (!this.isInitialized) {
-      return [];
-    }
-
-    let browserPages = [];
-    let pages: Page[] = [];
+    this.isDisposing = true;
 
     try {
-      pages = await this.getPages();
-    } catch (error) {
-      this.logger.error(`Error getting pages during dispose: ${error.message}`);
-      return [];
-    }
+      if (this.activeDownloads.size > 0) {
+        this.logger.log(`Cancelling ${this.activeDownloads.size} active downloads`);
 
-    let today = GetDateYYYYMMDD();
+        const pendingDownloads = Array.from(this.activeDownloads.values()).map(d => ({
+          filename: d.suggestedFilename,
+          url: d.url,
+          startTime: d.startTime,
+        }));
 
-    this.logger.log(`Disposing ${pages.length} page(s) for session ${this.id}`);
-
-    if (this.cdpSession) {
-      try {
-        await this.cdpSession.detach();
-        this.logger.log(`Session ${this.id}: CDP session detached successfully`);
-      } catch (error) {
-        this.logger.warn(`Error detaching CDP session during dispose: ${error.message}`);
-      }
-      this.cdpSession = null;
-    }
-
-    for (let i = 0; i < pages.length; i++) {
-      const pageUrl = pages[i].url();
-      this.logger.log(`Closing page[${i}] url=${pageUrl}`);
-      let pageDebuger = await this.getDebuggerUrl(i, pageUrl);
-      let sessionPage = new SessionPage(pageUrl, "", pageDebuger.ws_debugger_url, pageDebuger.front_debugger_url, pageDebuger.page_id, `localhost:${this.wsPort}`);
-      if (this.isSaveVideo) {
-        let video = await pages[i].video();
-        if (video) {
-          sessionPage.video_url = await pages[i].video().path();
-        }
+        this.logger.warn(`Session closing with pending downloads: ${JSON.stringify(pendingDownloads)}`);
+        this.activeDownloads.clear();
       }
 
-      await pages[i].close();
-      browserPages.push(sessionPage);
-    }
+      const elapsedSinceCreateMs = this.createdAt ? (Date.now() - this.createdAt.getTime()) : -1;
+      this.logger.log(`dispose() called. id: ${this.id}, isInitialized: ${this.isInitialized}, hasInitPromise: ${!!this.asyncInitPromise}, isInitializationCancelled: ${this.isInitializationCancelled}, createdAt: ${this.createdAt?.toISOString()}, elapsedSinceCreateMs: ${elapsedSinceCreateMs}, lastActionTs: ${this.lastActionTimestamp}, wsPort: ${this.wsPort}`);
 
-    await this.browserContext.close();
-    if (this.browser) {
-      await this.browser.close();
-    }
+      if (!this.isInitialized && !this.asyncInitPromise) {
+        this.logger.warn(`dispose() invoked while session was never initialized. id: ${this.id}`);
+        return [];
+      }
 
-    if (this.isSaveVideo) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      for (let i = 0; i < browserPages.length; i++) {
-        let videoPath = browserPages[i].video_url;
-        if (!videoPath) {
-          continue;
-        }
-
-        browserPages[i].video_url = '';
-        const filename = "screenshot/" + today + "/" + this.id + "/video_" + path.basename(videoPath);
+      if (!this.isInitialized && this.asyncInitPromise) {
+        this.logger.log(`Session ${this.id} dispose called during initialization - cancelling initialization`);
+        this.isInitializationCancelled = true;
 
         try {
-          if (!fs.existsSync(videoPath)) {
-            this.logger.warn(`Video file not found: ${videoPath}`);
-            continue;
-          }
-
-          let stats = await fs.promises.stat(videoPath);
-          if (stats.size === 0) {
-            this.logger.error(`Video is empty when upload: ${videoPath}`);
-            await SendAlarm.sendTextMessage('OSS Upload Failed', `${filename}\nError: Video is empty when upload: ${videoPath}`);
-            continue;
-          }
-
-          browserPages[i].video_url = await OSSFiles.upload(filename, videoPath);
+          await Promise.race([
+            this.asyncInitPromise,
+            new Promise(resolve => setTimeout(resolve, 5000))
+          ]);
         } catch (error) {
-          this.logger.warn(`Error processing video file ${videoPath}: ${error.message}`);
-          await SendAlarm.sendTextMessage('OSS Upload Failed', `OSS Upload Failed, error: ${error.message}`);
+          this.logger.warn(`Initialization cancellation completed with error: ${error.message}`);
         }
-      }
-    }
 
-    if (this.sessionContext.needExtension()) {
+        await this.cleanupFailedInitialization();
+        return [];
+      }
+
+      if (!this.isInitialized) {
+        return [];
+      }
+
+      let browserPages = [];
+      let pages: Page[] = [];
+
       try {
-        const userDataPath = path.resolve("./user_data/" + this.id);
-        this.logger.log(`Persistent context detected. userDataPath=${userDataPath}`);
-        if (fs.existsSync(userDataPath)) {
-          this.logger.log(`Deleting persistent user data directory: ${userDataPath}`);
-          fs.rmSync(userDataPath, { recursive: true, force: true });
-          this.logger.log(`Deleted persistent user data directory: ${userDataPath}`);
-        } else {
-          this.logger.log(`Persistent user data directory not found (nothing to delete): ${userDataPath}`);
-        }
+        pages = await this.getPages();
       } catch (error) {
-        this.logger.warn(`Error removing user data directory: ${error.message}`);
-        await SendAlarm.sendTextMessage('Error removing user data directory', `Error removing user data directory: ${error.message}`);
+        this.logger.error(`Error getting pages during dispose: ${error.message}`);
+        return [];
       }
-    }
 
-    if (this.timeoutHandle) {
-      clearTimeout(this.timeoutHandle);
-      this.timeoutHandle = null;
-    }
+      let today = GetDateYYYYMMDD();
 
-    this.browser = null;
-    this.browserContext = null;
-    this.page = null;
-    this.fingerprintData = null;
-    this.isInitialized = false;
-    this.logger.log(`Session released, id: ${this.id}`);
-    return browserPages;
+      this.logger.log(`Disposing ${pages.length} page(s) for session ${this.id}`);
+
+      if (this.cdpSession) {
+        try {
+          await this.cdpSession.detach();
+          this.logger.log(`Session ${this.id}: CDP session detached successfully`);
+        } catch (error) {
+          this.logger.warn(`Error detaching CDP session during dispose: ${error.message}`);
+        }
+        this.cdpSession = null;
+      }
+
+      for (let i = 0; i < pages.length; i++) {
+        const pageUrl = pages[i].url();
+        this.logger.log(`Closing page[${i}] url=${pageUrl}`);
+        let pageDebuger = await this.getDebuggerUrl(i, pageUrl);
+        let sessionPage = new SessionPage(pageUrl, "", pageDebuger.ws_debugger_url, pageDebuger.front_debugger_url, pageDebuger.page_id, `localhost:${this.wsPort}`);
+        if (this.isSaveVideo) {
+          let video = await pages[i].video();
+          if (video) {
+            sessionPage.video_url = await pages[i].video().path();
+          }
+        }
+
+        await pages[i].close();
+        browserPages.push(sessionPage);
+      }
+
+      await this.browserContext.close();
+      if (this.browser) {
+        await this.browser.close();
+      }
+
+      if (this.isSaveVideo) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        for (let i = 0; i < browserPages.length; i++) {
+          let videoPath = browserPages[i].video_url;
+          if (!videoPath) {
+            continue;
+          }
+
+          browserPages[i].video_url = '';
+          const filename = "screenshot/" + today + "/" + this.id + "/video_" + path.basename(videoPath);
+
+          try {
+            if (!fs.existsSync(videoPath)) {
+              this.logger.warn(`Video file not found: ${videoPath}`);
+              continue;
+            }
+
+            let stats = await fs.promises.stat(videoPath);
+            if (stats.size === 0) {
+              this.logger.error(`Video is empty when upload: ${videoPath}`);
+              await SendAlarm.sendTextMessage('OSS Upload Failed', `${filename}\nError: Video is empty when upload: ${videoPath}`);
+              continue;
+            }
+
+            browserPages[i].video_url = await OSSFiles.upload(filename, videoPath);
+          } catch (error) {
+            this.logger.warn(`Error processing video file ${videoPath}: ${error.message}`);
+            await SendAlarm.sendTextMessage('OSS Upload Failed', `OSS Upload Failed, error: ${error.message}`);
+          }
+        }
+      }
+
+      if (this.sessionContext.needExtension()) {
+        try {
+          const userDataPath = path.resolve("./user_data/" + this.id);
+          this.logger.log(`Persistent context detected. userDataPath=${userDataPath}`);
+          if (fs.existsSync(userDataPath)) {
+            this.logger.log(`Deleting persistent user data directory: ${userDataPath}`);
+            fs.rmSync(userDataPath, { recursive: true, force: true });
+            this.logger.log(`Deleted persistent user data directory: ${userDataPath}`);
+          } else {
+            this.logger.log(`Persistent user data directory not found (nothing to delete): ${userDataPath}`);
+          }
+        } catch (error) {
+          this.logger.warn(`Error removing user data directory: ${error.message}`);
+          await SendAlarm.sendTextMessage('Error removing user data directory', `Error removing user data directory: ${error.message}`);
+        }
+      }
+
+      if (this.timeoutHandle) {
+        clearTimeout(this.timeoutHandle);
+        this.timeoutHandle = null;
+      }
+
+      this.browser = null;
+      this.browserContext = null;
+      this.page = null;
+      this.fingerprintData = null;
+      this.isInitialized = false;
+      this.logger.log(`Session released, id: ${this.id}`);
+      return browserPages;
+    } finally {
+      this.isDisposing = false;
+    }
   }
 
   async toJson(): Promise<any> {

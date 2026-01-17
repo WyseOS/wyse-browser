@@ -97,6 +97,8 @@ export enum BrowserActionType {
   PreviewAction = 'preview_action',
   SetContent = 'set_content',
   Screenshot = 'screenshot',
+  Capsolver = 'capsolver',
+  Batch = 'batch',
 }
 
 /**

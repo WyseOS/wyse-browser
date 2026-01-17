@@ -17,6 +17,8 @@ export class OSSClient {
             const configPath = path.resolve('..', "configs/browser", "config.json");
             if (fs.existsSync(configPath)) {
                 config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+            } else {
+                this.logger.warn(`OSS config file not found at: ${configPath}`);
             }
         } catch (readErr) {
             this.logger.warn(`Failed to read OSS config: ${readErr?.message ?? readErr}`);
@@ -26,14 +28,22 @@ export class OSSClient {
         const hasKeys = hasAliyun && config.aliyun.access_key && config.aliyun.access_secret && config.aliyun.oss_region && config.aliyun.oss_bucket && config.aliyun.oss_endpoint && config.aliyun.url;
 
         if (hasKeys) {
-            this.client = new OSS({
-                accessKeyId: config.aliyun.access_key,
-                accessKeySecret: config.aliyun.access_secret,
-                region: config.aliyun.oss_region,
-                bucket: config.aliyun.oss_bucket,
-                endpoint: config.aliyun.oss_endpoint
-            });
-            this.urlPrefix = config.aliyun.url;
+            try {
+                this.client = new OSS({
+                    accessKeyId: config.aliyun.access_key,
+                    accessKeySecret: config.aliyun.access_secret,
+                    region: config.aliyun.oss_region,
+                    bucket: config.aliyun.oss_bucket,
+                    endpoint: config.aliyun.oss_endpoint
+                });
+                this.urlPrefix = config.aliyun.url;
+                this.logger.log(`✅ OSS client initialized successfully - Region: ${config.aliyun.oss_region}, Bucket: ${config.aliyun.oss_bucket}, Endpoint: ${config.aliyun.oss_endpoint}`);
+            } catch (initErr) {
+                this.client = null;
+                this.urlPrefix = '';
+                this.logger.error(`❌ OSS client initialization failed: ${initErr?.message ?? initErr}`);
+                this.logger.warn('OSS client disabled due to initialization error');
+            }
         } else {
             this.client = null;
             this.urlPrefix = '';
@@ -56,7 +66,7 @@ export class OSSClient {
 
     getSessionPath(sessionId: string): string {
         let today = GetDateYYYYMMDD();
-        return `${FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX}/${today}/session/${sessionId}/files/`;
+        return `${FILE_CONSTANTS.OSS_SESSION_PATH_PREFIX}/session/${today}/${sessionId}/files/`;
     }
 
     getObjectPath(sessionId: string, filename: string): string {

@@ -21,7 +21,7 @@ import {
   UpdateProfileDto,
   DeleteProfileDto,
 } from './dto/api.proxy.dto';
-import { BrowserActionDto, BatchActionsDto } from './dto/api.action.dto';
+import { BrowserActionDto } from './dto/api.action.dto';
 import { CreateSessionDto, AddInitScriptDto } from './dto/api.session.dto';
 import { ApiService } from './api.service';
 import { Response, responseMessage } from './dto/response.dto';
@@ -30,7 +30,7 @@ import { Response as ExpressResponse } from 'express';
 import { MetadataType } from '../constants';
 @Controller('api')
 export class ApiController {
-  constructor(private readonly apiService: ApiService) {}
+  constructor(private readonly apiService: ApiService) { }
 
   @Get('/health')
   health(): Response {
@@ -287,15 +287,6 @@ export class ApiController {
     @Res() res: ExpressResponse,
   ) {
     const response = await this.apiService.browserAction(browserActionDto);
-    return res.status(HttpStatus.OK).json(response);
-  }
-
-  @Post('/browser/batch_actions')
-  async batchAction(
-    @Body() batchActionDto: BatchActionsDto,
-    @Res() res: ExpressResponse,
-  ) {
-    const response = await this.apiService.batchAction(batchActionDto);
     return res.status(HttpStatus.OK).json(response);
   }
 }
