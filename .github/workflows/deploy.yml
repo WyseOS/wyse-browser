@@ -55,4 +55,6 @@ jobs:
           IMAGE_VERSION: ${{ secrets.ALICLOUD_ACR_REGISTRY }}/${{ secrets.ALICLOUD_ACR_NAMESPACE }}/${{ secrets.ALICLOUD_ACR_REPOSITORY }}:${{ env.APP_NAME }}-${{ inputs.deploy_env }}-${{ github.sha }}
           ALIYUN_ACCESS_KEY: ${{ secrets.ALIYUN_ACCESS_KEY }}
           ALIYUN_ACCESS_SECRET: ${{ secrets.ALIYUN_ACCESS_SECRET }}
+          CAPTCHA_API_KEY: ${{ secrets.CAPTCHA_API_KEY }}
+          CAPTCHA_TMP_PROXY: ${{ secrets.CAPTCHA_TMP_PROXY }}
         run: ./.github/scripts/deploy.sh

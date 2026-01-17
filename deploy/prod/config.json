@@ -1,0 +1,24 @@
+{
+    "browser": {
+        "headless": true,
+        "page_devtool_frontend_host": "https://webcast.wyseos.com",
+        "page_devtool_ws_host": "wss://api.wyseos.com",
+        "proxy": {
+            "server": "http://proxy:3128",
+            "username": "",
+            "password": ""
+        },
+        "captcha": {
+            "captcha_api_key": "{{.CAPTCHA_API_KEY}}",
+            "proxy": "{{.CAPTCHA_TMP_PROXY}}"
+        }
+    },
+    "aliyun": {
+        "access_key": "{{.ALIYUN_ACCESS_KEY}}",
+        "access_secret": "{{.ALIYUN_ACCESS_SECRET}}",
+        "oss_region": "cn-hongkong",
+        "oss_bucket": "matehk",
+        "oss_endpoint": "https://oss-accelerate.aliyuncs.com",
+        "url": "https://img.wyseos.com/"
+    }
+}

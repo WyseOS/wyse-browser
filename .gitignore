@@ -131,8 +131,7 @@ dist
 .DS_Store
 *.webm
 
-config.json
-browser/config.json
+configs/browser/config.json
 configs/proxy/*
 configs/profile/*
 

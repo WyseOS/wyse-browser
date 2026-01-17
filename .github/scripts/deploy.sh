@@ -3,6 +3,8 @@ set -e
 
 sed -i "s#{{.ALIYUN_ACCESS_KEY}}#${ALIYUN_ACCESS_KEY}#g" deploy/${ENV}/config.json
 sed -i "s#{{.ALIYUN_ACCESS_SECRET}}#${ALIYUN_ACCESS_SECRET}#g" deploy/${ENV}/config.json
+sed -i "s#{{.CAPTCHA_API_KEY}}#${CAPTCHA_API_KEY}#g" deploy/${ENV}/config.json
+sed -i "s#{{.CAPTCHA_TMP_PROXY}}#${CAPTCHA_TMP_PROXY}#g" deploy/${ENV}/config.json
 
 echo "${ALICLOUD_ACK_CLUSTER_CONFIG}" > deploy/${ENV}/kubeconfig.yaml
 
