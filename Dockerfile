@@ -7,9 +7,9 @@ COPY . .
 RUN npm install -g pnpm
 RUN npx playwright install-deps
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable
+  && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+  && apt-get update \
+  && apt-get install -y google-chrome-stable
 RUN cd browser && sh build_worklets.sh && pnpm install && npm run build:api
 RUN apt-get install -y net-tools
 RUN apt-get install -y nginx
@@ -19,7 +19,7 @@ RUN mkdir -p /etc/nginx/stream-conf.d
 RUN bash -c 'for i in {0..199}; do \
   src=$((15001+i)); dst=$((9401+i)); \
   echo "server { listen $src; proxy_pass 127.0.0.1:$dst; }" >> /etc/nginx/stream-conf.d/port_forward.conf; \
-done'
+  done'
 
 WORKDIR /app/browser
 

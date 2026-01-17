@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.APP_NAME}}
+  namespace: {{.ENV}}
+  labels:
+    app: {{.APP_NAME}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{.APP_NAME}}
+  template:
+    metadata:
+      labels:
+        app: {{.APP_NAME}}
+    spec:
+      hostNetwork: true
+      containers:
+        - name: {{.APP_NAME}}-container
+          image: {{.IMAGE_VERSION}}
+          ports:
+            - name: http
+              containerPort: 13100
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "4000m"
+              memory: "4Gi"
+      imagePullSecrets:
+        - name: acr-secret

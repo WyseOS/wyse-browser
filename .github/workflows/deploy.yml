@@ -1,0 +1,58 @@
+name: Deploy
+env:
+  APP_NAME: browser
+run-name: Deploy [${{ github.ref }} branch] to [${{ inputs.deploy_env }} env] by ${{ github.actor }}
+
+#on:
+#  push:
+#    branches:
+#      - main
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        type: choice
+        description: which env to deploy
+        options:
+          - prod
+          - dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: echo version
+        run: echo "${{ inputs.deploy_env }}"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to ACR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.ALICLOUD_ACR_REGISTRY }}
+          username: ${{ secrets.ALICLOUD_USERNAME }}
+          password: ${{ secrets.ALICLOUD_PASSWORD }}
+
+      - name: Make shell file executable
+        run: chmod +x ./.github/scripts/deploy.sh
+
+      - name: Build and Push Docker image and Deploy to ACK
+        shell: bash
+        env:
+          ENV: ${{ inputs.deploy_env }}
+          APP_NAME: ${{ env.APP_NAME }}
+          ALICLOUD_ACR_REGISTRY: ${{ secrets.ALICLOUD_ACR_REGISTRY }}
+          ALICLOUD_ACR_NAMESPACE: ${{ secrets.ALICLOUD_ACR_NAMESPACE }}
+          ALICLOUD_ACR_REPOSITORY: ${{ secrets.ALICLOUD_ACR_REPOSITORY }}
+          ALICLOUD_USERNAME: ${{ secrets.ALICLOUD_USERNAME }}
+          ALICLOUD_PASSWORD: ${{ secrets.ALICLOUD_PASSWORD }}
+          ALICLOUD_ACK_CLUSTER_CONFIG: ${{ secrets.ALICLOUD_ACK_CLUSTER_CONFIG }}
+          IMAGE_VERSION: ${{ secrets.ALICLOUD_ACR_REGISTRY }}/${{ secrets.ALICLOUD_ACR_NAMESPACE }}/${{ secrets.ALICLOUD_ACR_REPOSITORY }}:${{ env.APP_NAME }}-${{ inputs.deploy_env }}-${{ github.sha }}
+          ALIYUN_ACCESS_KEY: ${{ secrets.ALIYUN_ACCESS_KEY }}
+          ALIYUN_ACCESS_SECRET: ${{ secrets.ALIYUN_ACCESS_SECRET }}
+        run: ./.github/scripts/deploy.sh
