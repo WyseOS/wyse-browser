@@ -151,6 +151,10 @@ export class CreateSessionDto {
     @IsString({ message: 'Session ID must be a string' })
     @IsValidSessionId()
     readonly session_id?: string;
+
+    @IsOptional()
+    @IsString({ message: 'User ID must be a string' })
+    readonly user_id?: string;
 }
 
 /**

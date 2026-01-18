@@ -32,6 +32,11 @@ export class CreateFlowDto {
   readonly session_id: string = '';
 
   @IsOptional()
+  @IsString({ message: 'User ID must be a string' })
+  @Transform(({ value }) => value || '')
+  readonly user_id: string = '';
+
+  @IsOptional()
   @IsBoolean({ message: 'is_save_video must be a boolean' })
   @Transform(({ value }) => value ?? false)
   readonly is_save_video: boolean = false;
@@ -56,6 +61,11 @@ export class DeployFlowDto {
   @IsValidSessionId()
   @Transform(({ value }) => value || '')
   readonly session_id: string = '';
+
+  @IsOptional()
+  @IsString({ message: 'User ID must be a string' })
+  @Transform(({ value }) => value || '')
+  readonly user_id: string = '';
 
   @IsOptional()
   @IsBoolean({ message: 'is_save_video must be a boolean' })

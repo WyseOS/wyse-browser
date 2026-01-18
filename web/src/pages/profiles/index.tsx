@@ -1,9 +1,7 @@
 import useStore from "@/store/global";
 import {
-  alpha,
   Box,
   Button,
-  Chip,
   IconButton,
   Typography,
 } from "@mui/material";
@@ -47,9 +45,51 @@ export default function Index() {
       }
     });
   };
+  const handleLaunch = async (item: any) => {
+    console.log("launch", item);
+    // Parse proxy string if it exists
+    let proxyConfig = { server: "", username: "", password: "" };
+    if (item.proxy) {
+      proxyConfig.server = item.proxy;
+    }
+
+    const payload = {
+      user_id: item.profile_id, // Map profile_id to user_id for persistence
+      session_context: {
+        width: parseInt(item.width) || 1440,
+        height: parseInt(item.height) || 900,
+        proxy: proxyConfig,
+        // Add other fields if necessary
+      },
+    };
+
+    try {
+      const resp = await fetch("/api/session/create", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await resp.json();
+      if (data.code === 0) {
+        // Successfully launched
+        // Maybe show a specific success message or just log it
+        console.log("Session launched:", data);
+        // We could also navigate to the session view if we had one, but strict requirements weren't given.
+        // For now, we stay on the list.
+      } else {
+        console.error("Failed to launch session:", data);
+        alert("Failed to launch session: " + (data.result || "Unknown error"));
+      }
+    } catch (e) {
+      console.error("Error launching session:", e);
+      alert("Error launching session");
+    }
+  };
 
   return (
-    <div className="p-4 w-[1200px] mx-auto space-y-4">
+    <div className="p-4 w-full mx-auto space-y-4">
       <Box className="">
         <Box className="flex items-center justify-between">
           <div className="flex items-cetner space-x-4">
@@ -102,13 +142,14 @@ export default function Index() {
       <Box className="flex justify-center">
         {type === "create" ? <CreateProfile callback={callbackFetch} /> : null}
         {type === "update" ? (
-          <CreateProfile initalData={editItem} callback={callbackFetch} />
+          <CreateProfile initialData={editItem} callback={callbackFetch} />
         ) : null}
         {!type ? (
           <List
             list={profileList}
             setEditItem={handleEdit}
             handleDelete={handleDelete}
+            handleLaunch={handleLaunch}
           />
         ) : null}
       </Box>

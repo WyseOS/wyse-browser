@@ -39,6 +39,8 @@ export class Runtime {
         timeout: number;
         width: number;
         height: number;
+        userId?: string;
+        fingerprint?: any;
     }> = [];
 
     private maxTotalSessions: number = 10; // 最大会话总数
@@ -143,7 +145,9 @@ export class Runtime {
         session_id: string,
         timeout: number = DefaultTimeout,
         width: number = DefaultWidth,
-        height: number = DefaultHeight): Promise<string> {
+        height: number = DefaultHeight,
+        user_id?: string,
+        fingerprint?: any): Promise<string> {
 
         this.logger.warn(`createSession: headless is ${this.headless}`);
         if (!session_id) {
@@ -171,19 +175,23 @@ export class Runtime {
                     context,
                     timeout,
                     width,
-                    height
+                    height,
+                    userId: user_id,
+                    fingerprint
                 });
             });
         }
 
-        return this.createSessionInternal(context, session_id, timeout, width, height);
+        return this.createSessionInternal(context, session_id, timeout, width, height, user_id, fingerprint);
     }
 
     private async createSessionInternal(context: SessionContext,
         session_id: string,
         timeout: number,
         width: number,
-        height: number): Promise<string> {
+        height: number,
+        user_id?: string,
+        fingerprint?: any): Promise<string> {
 
         this.currentInitializingCount++;
         this.logger.log(`Starting session creation. Session: ${session_id}`);
@@ -191,7 +199,7 @@ export class Runtime {
         try {
             context.wsPort = this.getNextWsPort();
             let session = new Session();
-            let id = await session.initialize(session_id, context, timeout, width, height, this.headless, this.page_devtool_frontend_host, this.page_devtool_ws_host, this.proxy);
+            let id = await session.initialize(session_id, context, timeout, width, height, this.headless, this.page_devtool_frontend_host, this.page_devtool_ws_host, this.proxy, user_id, fingerprint);
 
             try {
                 await session.waitForInitialization();
@@ -231,7 +239,7 @@ export class Runtime {
             const next = this.initializationQueue.shift();
             if (next) {
                 this.logger.log(`Processing queued session creation: ${next.sessionId}`);
-                this.createSessionInternal(next.context, next.sessionId, next.timeout, next.width, next.height)
+                this.createSessionInternal(next.context, next.sessionId, next.timeout, next.width, next.height, next.userId, next.fingerprint)
                     .then(next.resolve)
                     .catch(next.reject);
             }

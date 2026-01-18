@@ -58,9 +58,11 @@ export class Session {
   timeout: number;
   width: number;
   height: number;
+  userId?: string;
   solveCaptcha: boolean;
   private logger: Logger;
   isSaveVideo: boolean;
+  private headless: boolean = true;
   proxy: { server: string, username: string, password: string };
   lastActionTimestamp: number = 0;
   wsPort: number;
@@ -99,21 +101,30 @@ export class Session {
     }
   }
 
-  async initialize(session_id: string, context: SessionContext, timeout: number, width: number, height: number, headless: boolean, page_devtool_frontend_host: string, page_devtool_ws_host: string, proxy: { server: string, username: string, password: string }): Promise<string> {
+  async initialize(session_id: string, context: SessionContext, timeout: number, width: number, height: number, headless: boolean, page_devtool_frontend_host: string, page_devtool_ws_host: string, proxy: { server: string, username: string, password: string }, user_id?: string, fingerprint?: BrowserFingerprintWithHeaders): Promise<string> {
     this.logger = new Logger(Session.name);
+    this.id = session_id;
+    this.sessionContext = context;
+    this.timeout = timeout;
+    this.width = width;
+    this.height = height;
+    this.headless = headless;
+    this.page_devtool_frontend_host = page_devtool_frontend_host;
+    this.page_devtool_ws_host = page_devtool_ws_host;
+    this.proxy = proxy;
+    this.userId = user_id;
+
+    if (fingerprint) {
+      this.fingerprintData = fingerprint;
+    }
+
     this.isInitialized = false;
     this.chromeExecPath = getChromeExecutablePath();
     this.wsPort = context.wsPort;
-    this.timeout = timeout;
-    this.sessionContext = context;
     this.isSaveVideo = context.isSaveVideo;
     this.createdAt = new Date();
     this.initializationStartTime = new Date();
-    this.width = width;
-    this.height = height;
     this.solveCaptcha = DefaultSolveCaptcha;
-    this.page_devtool_frontend_host = page_devtool_frontend_host;
-    this.page_devtool_ws_host = page_devtool_ws_host;
     this.proxy = context.proxy;
     if (this.proxy === undefined || this.proxy.server === undefined || this.proxy.server === '') {
       this.proxy = proxy;
@@ -244,148 +255,204 @@ export class Session {
         slim: true,
       };
 
-      if (context.needExtension()) {
+      if (context.needExtension() || this.userId) {
         let extensionPath = '';
-        for (let extensionName of this.sessionContext.extensionNames) {
-          if (!ExtensionPaths.hasOwnProperty(extensionName)) {
-            throw new Error('no such find extension: ' + extensionName);
-          }
+        const userDataDir = this.userId ? path.resolve("./user_data/" + this.userId) : path.resolve("./user_data/" + this.id);
 
-          extensionPath = ExtensionPaths[extensionName];
-          browserArgs.push('--load-extension=' + extensionPath);
-        }
-
-        if (context.extensionNames.length === 1) {
-          browserArgs.push('--disable-extensions-except=' + extensionPath);
-        }
-
-        browserArgs.push('--disable-web-security');
-        browserArgs.push('--disable-extensions-file-access-check');
-        browserArgs.push('--disable-extensions-http-throttling');
-        browserArgs.push('--disable-site-isolation-trials');
-
-        if (!fs.existsSync(path.resolve('./user_data'))) {
-          fs.mkdirSync(path.resolve('./user_data'), { recursive: true });
-        }
-
-        try {
-          const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
-          this.fingerprintData = fingerprintGen.getFingerprint();
-
-          if (!this.fingerprintData) {
-            this.logger.warn('Failed to generate fingerprint, using default');
-            this.fingerprintData = GetDefaultFingerprint();
-          } else {
-            // Validate generated fingerprint
-            const userAgent = this.fingerprintData.fingerprint?.navigator?.userAgent;
-            if (!userAgent || !userAgent.includes('Chrome/1')) { // Relaxed validation - just check for Chrome/1xx
-              this.logger.warn(`Generated fingerprint has unexpected user agent: ${userAgent}, using default`);
-              this.fingerprintData = GetDefaultFingerprint();
+        if (context.needExtension()) {
+          for (let extensionName of this.sessionContext.extensionNames) {
+            if (!ExtensionPaths.hasOwnProperty(extensionName)) {
+              throw new Error('no such find extension: ' + extensionName);
             }
+
+            extensionPath = ExtensionPaths[extensionName];
+            browserArgs.push('--load-extension=' + extensionPath);
           }
-        } catch (error) {
-          this.logger.warn(`Failed to generate fingerprint: ${error.message}, using default`);
-          this.fingerprintData = GetDefaultFingerprint();
-        }
 
-        this.browserContext = await chromium.launchPersistentContext(
-          path.resolve("./user_data/" + this.id),
-          {
-            ...launchOptions,
-            viewport: { width: this.width, height: this.height },
-            userAgent: this.fingerprintData.fingerprint.navigator.userAgent,
-            extraHTTPHeaders: this.getInjectableHeaders(this.fingerprintData.headers),
+          if (context.extensionNames.length === 1) {
+            browserArgs.push('--disable-extensions-except=' + extensionPath);
           }
-        );
 
-        const fingerprintInjector = new FingerprintInjector();
-        await fingerprintInjector.attachFingerprintToPlaywright(this.browserContext, this.fingerprintData);
-      } else {
-        browserArgs.push('--disable-extensions');
-        this.browser = await chromium.launch(launchOptions);
+          browserArgs.push('--disable-web-security');
+          browserArgs.push('--disable-extensions-file-access-check');
+          browserArgs.push('--disable-extensions-http-throttling');
+          browserArgs.push('--disable-site-isolation-trials');
 
-        this.browserContext = await newInjectedContext(
-          this.browser,
-          {
-            fingerprintOptions: fingerprintOptions,
-            newContextOptions: {
+          if (!fs.existsSync(userDataDir)) {
+            fs.mkdirSync(userDataDir, { recursive: true });
+          }
+
+          try {
+            if (this.userId) {
+              const fingerprintPath = path.join(userDataDir, 'fingerprint.json');
+              if (fs.existsSync(fingerprintPath)) {
+                try {
+                  this.fingerprintData = JSON.parse(fs.readFileSync(fingerprintPath, 'utf8'));
+                  this.logger.log(`Loaded existing fingerprint for user ${this.userId}`);
+                } catch (e) {
+                  this.logger.warn(`Failed to load existing fingerprint: ${e.message}, generating new one`);
+                }
+              }
+            }
+
+
+            // 优先级: 传入的指纹 > 本地加载的指纹 > 生成新指纹
+            if (this.fingerprintData) {
+              this.logger.log(`Using provided/loaded fingerprint for session ${this.id}`);
+            } else {
+              const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
+              this.fingerprintData = fingerprintGen.getFingerprint();
+
+              if (this.fingerprintData) {
+                // 如果是持久化用户，保存新生成的指纹
+                if (this.userId) {
+                  const userDataDir = path.resolve("./user_data/" + this.userId);
+                  const fingerprintPath = path.join(userDataDir, 'fingerprint.json');
+                  try {
+                    if (!fs.existsSync(userDataDir)) {
+                      fs.mkdirSync(userDataDir, { recursive: true });
+                    }
+                    fs.writeFileSync(fingerprintPath, JSON.stringify(this.fingerprintData, null, 2));
+                    this.logger.log(`Saved new fingerprint for user ${this.userId}`);
+                  } catch (e) {
+                    this.logger.warn(`Failed to save new fingerprint: ${e.message}`);
+                  }
+                }
+              }
+
+              if (!this.fingerprintData) {
+                this.logger.warn('Failed to generate fingerprint for logging, using default');
+                this.fingerprintData = GetDefaultFingerprint();
+              } else {
+                // Validate generated fingerprint
+                const userAgent = this.fingerprintData.fingerprint?.navigator?.userAgent;
+                if (!userAgent || !userAgent.includes('Chrome/1')) { // Relaxed validation - just check for Chrome/1xx
+                  this.logger.warn(`Generated fingerprint for logging has unexpected user agent: ${userAgent}, using default`);
+                  this.fingerprintData = GetDefaultFingerprint();
+                }
+              }
+            }
+          } catch (error) {
+            this.logger.warn(`Failed to generate fingerprint: ${error.message}, using default`);
+            this.fingerprintData = GetDefaultFingerprint();
+          }
+
+          this.browserContext = await chromium.launchPersistentContext(
+            userDataDir,
+            {
+              ...launchOptions,
               viewport: { width: this.width, height: this.height },
-            },
+              userAgent: this.fingerprintData.fingerprint.navigator.userAgent,
+              extraHTTPHeaders: this.getInjectableHeaders(this.fingerprintData.headers),
+            }
+          );
+
+          const fingerprintInjector = new FingerprintInjector();
+          await fingerprintInjector.attachFingerprintToPlaywright(this.browserContext, this.fingerprintData);
+        } else {
+          browserArgs.push('--disable-extensions');
+          this.browser = await chromium.launch(launchOptions);
+
+          this.browserContext = await newInjectedContext(
+            this.browser,
+            {
+              fingerprintOptions: fingerprintOptions,
+              newContextOptions: {
+                viewport: { width: this.width, height: this.height },
+              },
+            }
+          );
+
+
+          // 优先级: 传入的指纹 > 本地加载的指纹 > 生成新指纹
+          if (this.fingerprintData) {
+            this.logger.log(`Using provided/loaded fingerprint for session ${this.id}`);
+          } else {
+            const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
+            this.fingerprintData = fingerprintGen.getFingerprint();
+
+            if (this.fingerprintData) {
+              // 如果是持久化用户，保存新生成的指纹
+              if (this.userId) {
+                const userDataDir = path.resolve("./user_data/" + this.userId);
+                const fingerprintPath = path.join(userDataDir, 'fingerprint.json');
+                try {
+                  if (!fs.existsSync(userDataDir)) {
+                    fs.mkdirSync(userDataDir, { recursive: true });
+                  }
+                  fs.writeFileSync(fingerprintPath, JSON.stringify(this.fingerprintData, null, 2));
+                  this.logger.log(`Saved new fingerprint for user ${this.userId}`);
+                } catch (e) {
+                  this.logger.warn(`Failed to save new fingerprint: ${e.message}`);
+                }
+              }
+            }
+
+            if (!this.fingerprintData) {
+              this.logger.warn('Failed to generate fingerprint for logging, using default');
+              this.fingerprintData = GetDefaultFingerprint();
+            } else {
+              // Validate generated fingerprint
+              const userAgent = this.fingerprintData.fingerprint?.navigator?.userAgent;
+              if (!userAgent || !userAgent.includes('Chrome/1')) { // Relaxed validation - just check for Chrome/1xx
+                this.logger.warn(`Generated fingerprint for logging has unexpected user agent: ${userAgent}, using default`);
+                this.fingerprintData = GetDefaultFingerprint();
+              }
+            }
           }
-        );
+        }
+
+        if (this.isInitializationCancelled) {
+          throw new Error('Initialization was cancelled');
+        }
+
+        await this.setupDownloadHandler();
+
+        this.logger.log(`Session ${this.id}: Starting page initialization`);
+        let pages = await this.browserContext.pages();
+        if (pages && pages.length > 0) {
+          this.page = pages[0];
+          if (pages.length > 1) {
+            for (let i = 1; i < pages.length; i++) {
+              try {
+                await pages[i].close();
+              } catch (error) {
+                this.logger.warn(`Failed to close page ${i}: ${error.message}`);
+                await SendAlarm.sendTextMessage('Failed to close page', `Failed to close page ${i}: ${error.message}`);
+              }
+            }
+          }
+        } else {
+          this.page = await this.browserContext.newPage();
+        }
+
+        if (this.isInitializationCancelled) {
+          throw new Error('Initialization was cancelled');
+        }
 
         try {
-          const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
-          this.fingerprintData = fingerprintGen.getFingerprint();
-
-          if (!this.fingerprintData) {
-            this.logger.warn('Failed to generate fingerprint for logging, using default');
-            this.fingerprintData = GetDefaultFingerprint();
-          } else {
-            // Validate generated fingerprint
-            const userAgent = this.fingerprintData.fingerprint?.navigator?.userAgent;
-            if (!userAgent || !userAgent.includes('Chrome/1')) { // Relaxed validation - just check for Chrome/1xx
-              this.logger.warn(`Generated fingerprint for logging has unexpected user agent: ${userAgent}, using default`);
-              this.fingerprintData = GetDefaultFingerprint();
-            }
-          }
+          this.cdpSession = await this.browserContext.newCDPSession(this.page);
+          this.logger.log(`Session ${this.id}: CDP session created successfully`);
         } catch (error) {
-          this.logger.warn(`Failed to generate fingerprint for logging: ${error.message}, using default`);
-          this.fingerprintData = GetDefaultFingerprint();
+          this.logger.error(`Session ${this.id}: Failed to create CDP session: ${error.message}`);
+          throw new Error(`CDP session creation failed: ${error.message}`);
         }
-      }
 
-      if (this.isInitializationCancelled) {
-        throw new Error('Initialization was cancelled');
-      }
+        this.page.setDefaultTimeout(this.timeout);
 
-      await this.setupDownloadHandler();
-
-      this.logger.log(`Session ${this.id}: Starting page initialization`);
-      let pages = await this.browserContext.pages();
-      if (pages && pages.length > 0) {
-        this.page = pages[0];
-        if (pages.length > 1) {
-          for (let i = 1; i < pages.length; i++) {
-            try {
-              await pages[i].close();
-            } catch (error) {
-              this.logger.warn(`Failed to close page ${i}: ${error.message}`);
-              await SendAlarm.sendTextMessage('Failed to close page', `Failed to close page ${i}: ${error.message}`);
-            }
-          }
+        if (this.page_devtool_frontend_host.includes("localhost")) {
+          this.page_devtool_frontend_host = `${this.page_devtool_frontend_host}:${this.wsPort}`;
         }
-      } else {
-        this.page = await this.browserContext.newPage();
-      }
-
-      if (this.isInitializationCancelled) {
-        throw new Error('Initialization was cancelled');
-      }
-
-      try {
-        this.cdpSession = await this.browserContext.newCDPSession(this.page);
-        this.logger.log(`Session ${this.id}: CDP session created successfully`);
-      } catch (error) {
-        this.logger.error(`Session ${this.id}: Failed to create CDP session: ${error.message}`);
-        throw new Error(`CDP session creation failed: ${error.message}`);
-      }
-
-      this.page.setDefaultTimeout(this.timeout);
-
-      if (this.page_devtool_frontend_host.includes("localhost")) {
-        this.page_devtool_frontend_host = `${this.page_devtool_frontend_host}:${this.wsPort}`;
-      }
-      if (this.page_devtool_ws_host.includes("localhost")) {
-        this.page_devtool_ws_host = `${this.page_devtool_ws_host}:${this.wsPort}`;
+        if (this.page_devtool_ws_host.includes("localhost")) {
+          this.page_devtool_ws_host = `${this.page_devtool_ws_host}:${this.wsPort}`;
+        }
       }
 
       this.updateActionTimestamp();
       this.isInitialized = true;
       const initDuration = Date.now() - this.initializationStartTime.getTime();
       this.logger.log(`Session initialized successfully, id: ${this.id}, duration: ${initDuration}ms`);
-    }
-    catch (error) {
+    } catch (error) {
       this.logger.error(`Failed to finish async setup, error: ${error.message}, browser id: ${this.id}`);
       await SendAlarm.sendTextMessage('Session initialization failed', `SessionID ${this.id} initialization failed, error: ${error.message}`);
       throw error;
@@ -428,14 +495,19 @@ export class Session {
         this.browser = null;
       }
 
-      if (this.sessionContext && this.sessionContext.needExtension()) {
-        const userDataPath = path.resolve("./user_data/" + this.id);
-        try {
-          if (fs.existsSync(userDataPath)) {
-            fs.rmSync(userDataPath, { recursive: true, force: true });
+      if ((this.sessionContext && this.sessionContext.needExtension()) || (this.userId && !this.sessionContext)) {
+        // Strict cleanup rule: NEVER delete if userId is present.
+        // Only delete if it is an ephemeral session (no userId).
+        if (!this.userId) {
+          const userDataPath = path.resolve("./user_data/" + this.id);
+          try {
+            if (fs.existsSync(userDataPath)) {
+              this.logger.log(`Removing ephemeral user data for session ${this.id}`);
+              fs.rmSync(userDataPath, { recursive: true, force: true });
+            }
+          } catch (error) {
+            this.logger.warn(`Error removing user data directory: ${error.message}`);
           }
-        } catch (error) {
-          this.logger.warn(`Error removing user data directory: ${error.message}`);
         }
       }
 
@@ -951,20 +1023,19 @@ export class Session {
         }
       }
 
+      // Strict cleanup rule: NEVER delete if userId is present.
+      // Only delete if it is an ephemeral session (no userId).
       if (this.sessionContext.needExtension()) {
-        try {
-          const userDataPath = path.resolve("./user_data/" + this.id);
-          this.logger.log(`Persistent context detected. userDataPath=${userDataPath}`);
-          if (fs.existsSync(userDataPath)) {
-            this.logger.log(`Deleting persistent user data directory: ${userDataPath}`);
-            fs.rmSync(userDataPath, { recursive: true, force: true });
-            this.logger.log(`Deleted persistent user data directory: ${userDataPath}`);
-          } else {
-            this.logger.log(`Persistent user data directory not found (nothing to delete): ${userDataPath}`);
+        if (!this.userId) {
+          try {
+            const userDataPath = path.resolve("./user_data/" + this.id);
+            if (fs.existsSync(userDataPath)) {
+              this.logger.log(`Removing ephemeral user data for session ${this.id}`);
+              fs.rmSync(userDataPath, { recursive: true, force: true });
+            }
+          } catch (error) {
+            this.logger.warn(`Error removing user data directory: ${error.message}`);
           }
-        } catch (error) {
-          this.logger.warn(`Error removing user data directory: ${error.message}`);
-          await SendAlarm.sendTextMessage('Error removing user data directory', `Error removing user data directory: ${error.message}`);
         }
       }
 
