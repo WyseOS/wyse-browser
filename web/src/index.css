@@ -1,145 +1,107 @@
-:root {
-  font-family: 'Patrick Hand', cursive, system-ui, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light;
-  background-color: #fdfbf7;
-  /* Warm paper color */
-  background-image: radial-gradient(#d1d5db 1px, transparent 1px);
-  background-size: 20px 20px;
-  /* Dot grid paper effect */
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-/* Sketchy Utility */
-.sketchy-border {
-  border: 2px solid #374151;
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  background: white;
-  box-shadow: 2px 3px 0px 0px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease-in-out;
-}
-
-.sketchy-border:hover {
-  transform: scale(1.02);
-  box-shadow: 3px 5px 0px 0px rgba(0, 0, 0, 0.2);
-}
-
-.sketchy-card {
-  background: white;
-  border: 2px solid #374151;
-  border-radius: 8px;
-  /* Slightly rounded, let borders do the work if we use svgs, but simpler here */
-  /* Using a simpler approach for content blocks */
-  box-shadow: 4px 4px 0 #374151;
-}
-
-button {
-  font-family: 'Patrick Hand', cursive;
-  font-size: 1.2rem;
-  padding: 0.6em 1.2em;
-  background-color: #fff;
-  color: #374151;
-  border: 2px solid #374151;
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 2px 2px 0 #374151;
-}
-
-button:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 #374151;
-  border-color: #000;
-}
-
-button:active {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 #374151;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-left: 2px solid #374151;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #9ca3af;
-  border: 2px solid #374151;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Hand-Drawn Light Theme Variables */
-    --background: 40 20% 98%;
-    /* #fdfbf7 */
-    --foreground: 220 13% 18%;
-    /* #374151 */
+    /* 
+     * MODERN CLEAN THEME 
+     * Based on Design System: Minimal Single Column | Vibrant & Block-based
+     */
 
+    /* Backgrounds: Slate-50 for main bg, White for cards */
+    --background: 210 40% 98%;
+    /* #F8FAFC */
+    --foreground: 215 25% 27%;
+    /* #334155 (Slate-700) for readable text */
+
+    /* Card & Surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 220 13% 18%;
+    /* #FFFFFF */
+    --card-foreground: 215 25% 27%;
 
+    /* Popovers */
     --popover: 0 0% 100%;
-    --popover-foreground: 220 13% 18%;
+    --popover-foreground: 215 25% 27%;
 
+    /* Primary: #3B82F6 (Blue-500) */
     --primary: 217 91% 60%;
-    /* #3b82f6 doodle blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 20% 94%;
-    --secondary-foreground: 220 13% 18%;
+    /* Secondary: #60A5FA (Blue-400) or Slate-100 for subtle UI */
+    --secondary: 210 40% 96.1%;
+    /* Slate-100 */
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 8% 46%;
+    /* Muted: Slate-100 */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Slate-500 */
 
-    --accent: 40 20% 90%;
-    --accent-foreground: 220 13% 18%;
+    /* Accent: Slate-100 hover states */
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 220 13% 18%;
-    /* Dark borders for outlines */
-    --input: 220 13% 18%;
-    --ring: 220 13% 18%;
+    /* Borders: Slate-200 */
+    --border: 214.3 31.8% 91.4%;
+    /* #E2E8F0 */
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217 91% 60%;
 
     --radius: 0.5rem;
   }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    font-weight: 400;
   }
+}
+
+@layer components {
+
+  /* Modern Button Reset */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center rounded-lg border border-input bg-transparent px-4 py-2 text-sm font-medium shadow-sm transition-all hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* Modern Form Elements */
+  .input-clean {
+    @apply flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .select-clean {
+    @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .glass-header {
+    @apply backdrop-blur-md bg-white/80 border-b border-border sticky top-0 z-50 supports-[backdrop-filter]:bg-white/60;
+  }
+}
+
+/* Custom Scrollbar - Clean & Minimal */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
 }

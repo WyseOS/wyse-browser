@@ -2,12 +2,8 @@ import { useFormik } from "formik";
 import * as yup from "yup";
 import {
   Box,
-  MenuItem,
-  OutlinedInput,
   Typography,
 } from "@mui/material";
-import Select from "@mui/material/Select";
-import Button from "@mui/material/Button";
 import useStore from "@/store/global";
 
 enum Browser {
@@ -76,9 +72,9 @@ export default function AddProfile(props: any) {
         <div className="w-[600px] space-y-4">
           <div className="space-y-1">
             <Typography className="capitalize">Profile Name</Typography>
-            <OutlinedInput
+            <input
               name="profile_name"
-              fullWidth
+              className="input-clean"
               value={values.profile_name || ""}
               onChange={formik.handleChange}
             />
@@ -86,69 +82,66 @@ export default function AddProfile(props: any) {
 
           <div className="space-y-1">
             <Typography className="capitalize">Browser</Typography>
-            <Select
+            <select
               name="browser"
               value={values.browser || ""}
-              fullWidth
+              className="select-clean"
               onChange={formik.handleChange}
             >
               {Object.keys(Browser).map((browserItem: any, index: number) => (
-                <MenuItem value={browserItem} key={`${browserItem}_${index}`}>
+                <option value={browserItem} key={`${browserItem}_${index}`}>
                   {browserItem.replace("_", " ")}
-                </MenuItem>
+                </option>
               ))}
-            </Select>
+            </select>
           </div>
 
           <div className="space-y-1">
             <Typography className="capitalize">Proxy</Typography>
-            <Select
+            <select
               name="proxy"
+              className="select-clean"
               value={values.proxy || ""}
-              fullWidth
               onChange={formik.handleChange}
             >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
+              <option value="">
+                None
+              </option>
               {proxyList.map((proxyItem: any, index: number) => (
-                <MenuItem
+                <option
                   value={proxyItem.proxy_id}
                   key={proxyItem.proxy_id || index}
                 >
                   {proxyItem.proxy_name.replace("_", " ")}
-                </MenuItem>
+                </option>
               ))}
-            </Select>
+            </select>
           </div>
 
           <div className="space-y-1">
             <Typography className="capitalize">Fingerprint</Typography>
             <div className="flex items-center space-x-2">
-              <OutlinedInput
+              <textarea
                 name="fingerprint"
-                fullWidth
+                className="input-clean h-auto min-h-[100px]"
                 value={values.fingerprint || ""}
                 onChange={formik.handleChange}
-                multiline
-                minRows={1}
-                maxRows={15}
+                rows={5}
               />
-              <Button
-                variant="contained"
+              <button
                 onClick={generateFingerprint}
-                className="whitespace-nowrap"
+                className="btn-primary whitespace-nowrap"
               >
                 Random
-              </Button>
+              </button>
             </div>
           </div>
 
           <div className="space-y-1">
             <Typography className="capitalize">Width</Typography>
-            <OutlinedInput
+            <input
               name="width"
-              fullWidth
+              className="input-clean"
               value={values.width || ""}
               onChange={formik.handleChange}
             />
@@ -156,28 +149,26 @@ export default function AddProfile(props: any) {
 
           <div className="space-y-1">
             <Typography className="capitalize">Height</Typography>
-            <OutlinedInput
+            <input
               name="height"
-              fullWidth
+              className="input-clean"
               value={values.height || ""}
               onChange={formik.handleChange}
             />
           </div>
           <div className="flex items-center space-x-4">
-            <Button
-              variant="outlined"
-              fullWidth
+            <button
+              className="btn-outline w-full"
               onClick={formik.handleReset}
             >
               clear
-            </Button>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={formik.submitForm}
+            </button>
+            <button
+              className="btn-primary w-full"
+              onClick={() => formik.submitForm()}
             >
               Submit
-            </Button>
+            </button>
           </div>
         </div>
       </div>

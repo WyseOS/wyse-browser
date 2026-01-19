@@ -10,16 +10,13 @@ import {
   Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import { Typography } from "@mui/material";
+
 import { DatabaseSchemaNode } from "@/components/database-schema-node";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
+
 import useStore from "@/store/global";
 import { isArray, isObject, isEmpty } from "lodash";
 import { v4 as uuidv4 } from "uuid";
-import Button from "@mui/material/Button";
+
 
 const nodeTypes = {
   databaseSchema: DatabaseSchemaNode,
@@ -105,40 +102,28 @@ function Flow(props: any) {
       fitView
       attributionPosition="bottom-left"
     >
-      <Box className="update-node__controls absolute left-0 top-4 z-[9999] w-full flex justify-center pointer-events-none">
-        <div className="sketchy-card px-4 py-2 flex items-center space-x-4 pointer-events-auto bg-[#fdfbf7]">
-          <Select
-            value={activeFlow}
-            onChange={handleChangeFlow}
-            variant="outlined"
-            size="small"
-            sx={{
-              width: 280,
-              ".MuiOutlinedInput-notchedOutline": { border: "none" },
-              backgroundColor: "white",
-              borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
-              border: "2px solid #374151",
-              color: "#374151",
-            }}
-          >
-            {flowsData.map((item: any, index: number) => {
-              return (
-                <MenuItem id={`${item}${index}`} value={index} key={index}>
-                  {item.name}
-                </MenuItem>
-              );
-            })}
-          </Select>
-          <Button
-            onClick={handleSave}
-            variant="contained"
-            color="primary"
-            sx={{ borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px", px: 3 }}
-          >
-            Save Flow
-          </Button>
-        </div>
-      </Box>
+      <div className="absolute left-6 top-6 z-10 flex items-center space-x-3 bg-white/90 backdrop-blur p-2 rounded-lg shadow-sm border border-border">
+        <select
+          value={activeFlow}
+          onChange={handleChangeFlow}
+          className="select-clean"
+          style={{ width: 240 }}
+        >
+          {flowsData.map((item: any, index: number) => {
+            return (
+              <option id={`${item}${index}`} value={index} key={index}>
+                {item.name}
+              </option>
+            );
+          })}
+        </select>
+        <button
+          onClick={handleSave}
+          className="btn-primary"
+        >
+          Save Flow
+        </button>
+      </div>
       <MiniMap bgColor="#FFF" />
       <Controls />
       <Background />
@@ -244,46 +229,43 @@ export default function App() {
   };
 
   return (
-    <Box
-      sx={{ width: "100%", height: "100%" }}
-      className="relative flex p-4 gap-4"
-    >
-      <Paper
-        className="basis-[280px] p-0 flex flex-col overflow-hidden sketchy-card border-2 border-[#374151]"
-        elevation={0}
-        sx={{ backgroundColor: "#fdfbf7" }}
-      >
-        <div className="p-6 border-b-2 border-[#374151] bg-[#f3f4f6]">
-          <Typography variant="h6" className="font-bold text-[#374151]" style={{ fontFamily: '"Patrick Hand"' }}>
+    <div className="relative flex h-full w-full gap-4 p-4">
+      {/* Sidebar - Worklets */}
+      <div className="flex w-[280px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="border-b border-border bg-muted/40 p-4">
+          <h2 className="text-lg font-semibold text-foreground">
             Worklets
-          </Typography>
-          <Typography variant="caption" className="text-slate-500" style={{ fontFamily: '"Patrick Hand"' }}>
+          </h2>
+          <p className="text-sm text-muted-foreground">
             Drag items to the canvas
-          </Typography>
+          </p>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
+        <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {worklets.map((item, index) => {
             return (
               <div
                 key={item.name}
-                className="cursor-grab active:cursor-grabbing p-3 rounded-lg bg-white hover:bg-yellow-50 border-2 border-[#374151] shadow-[2px_2px_0_#374151] transition-all hover:-translate-y-0.5 hover:shadow-[3px_3px_0_#374151] flex items-center group"
+                className="group flex cursor-grab items-center rounded-lg border border-border bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md active:cursor-grabbing"
                 draggable={true}
                 onDragStart={(e) => console.log("onDragStart")}
                 onDragEnd={(e) => handleDragItem(e, item)}
                 id={`item${index}`}
               >
-                <div className="w-3 h-3 rounded-full border border-[#374151] bg-blue-400 mr-3"></div>
-                <span className="text-lg font-medium text-[#374151]" style={{ fontFamily: '"Patrick Hand"' }}>
+                <div className="mr-3 h-3 w-3 rounded-full bg-blue-400 ring-2 ring-blue-100"></div>
+                <span className="font-medium text-foreground">
                   {item.name}
                 </span>
               </div>
             );
           })}
         </div>
-      </Paper>
-      <Box className="flex-1 relative rounded-[15px] overflow-hidden border-2 border-[#374151] bg-white shadow-[4px_4px_0_#374151]">
+      </div>
+
+      {/* Main Canvas Area */}
+      <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-white shadow-sm ring-1 ring-black/5">
         {isEmpty(refactorData) ? (
-          <div className="flex items-center justify-center h-full text-slate-500">
+          <div className="flex h-full items-center justify-center text-muted-foreground">
             No flows available
           </div>
         ) : (
@@ -293,7 +275,7 @@ export default function App() {
             onSave={handleSave}
           />
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

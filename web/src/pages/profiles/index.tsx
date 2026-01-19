@@ -1,7 +1,6 @@
 import useStore from "@/store/global";
 import {
   Box,
-  Button,
   IconButton,
   Typography,
 } from "@mui/material";
@@ -103,15 +102,12 @@ export default function Index() {
             <Typography variant="h6">Profiles</Typography>
           </div>
           {!type && (
-            <Button
-              component={Link}
+            <Link
               to={`/profile/create`}
-              variant="contained"
-              color="primary"
-              size="small"
+              className="btn-primary no-underline"
             >
               Add new
-            </Button>
+            </Link>
           )}
         </Box>
         {/* <Box className="space-y-4">

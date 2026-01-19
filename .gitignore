@@ -138,3 +138,9 @@ configs/profile/*
 
 # crawler data
 worklets/crawler/data/tools.json
+
+#skills
+.agent
+.shared
+
+
