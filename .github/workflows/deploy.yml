@@ -57,4 +57,5 @@ jobs:
           ALIYUN_ACCESS_SECRET: ${{ secrets.ALIYUN_ACCESS_SECRET }}
           CAPTCHA_API_KEY: ${{ secrets.CAPTCHA_API_KEY }}
           CAPTCHA_TMP_PROXY: ${{ secrets.CAPTCHA_TMP_PROXY }}
+          CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
         run: ./.github/scripts/deploy.sh

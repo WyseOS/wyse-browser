@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "${CONFIG_JSON}" > deploy/${ENV}/config.json
+
 sed -i "s#{{.ALIYUN_ACCESS_KEY}}#${ALIYUN_ACCESS_KEY}#g" deploy/${ENV}/config.json
 sed -i "s#{{.ALIYUN_ACCESS_SECRET}}#${ALIYUN_ACCESS_SECRET}#g" deploy/${ENV}/config.json
 sed -i "s#{{.CAPTCHA_API_KEY}}#${CAPTCHA_API_KEY}#g" deploy/${ENV}/config.json
