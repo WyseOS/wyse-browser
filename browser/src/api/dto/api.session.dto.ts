@@ -125,25 +125,35 @@ export class CreateSessionDto {
     @IsObject({ message: 'Session context must be an object' })
     @Transform(({ value }) => {
         if (!value) return undefined;
+        console.log('[CreateSessionDto] Transform Input:', JSON.stringify(value));
+
         if (typeof value === 'object' && !value.session_context) {
             // 如果直接传入了 cookies 和 origins，将其包装到 session_context 中
             if (value.cookies || value.origins) {
-                return {
+                const result = {
                     cookies: value.cookies || [],
                     origins: value.origins || [],
-                    isSaveVideo: false,
-                    extensionNames: []
+                    isSaveVideo: value.isSaveVideo ?? false,
+                    solveCaptcha: value.solveCaptcha ?? false,
+                    timeout: value.timeout ?? 30000,
+                    extensionNames: value.extensionNames ?? []
                 };
+                console.log('[CreateSessionDto] Transform Result (wrapped):', JSON.stringify(result));
+                return result;
             }
         }
         // 处理标准格式的请求
-        return {
+        const result = {
             ...value,
             cookies: value.cookies || [],
             origins: value.origins || [],
-            isSaveVideo: value.is_save_video ?? false,
-            extensionNames: value.extension_names || []
+            isSaveVideo: value.isSaveVideo ?? false,
+            solveCaptcha: value.solveCaptcha ?? false,
+            timeout: value.timeout ?? 30000,
+            extensionNames: value.extensionNames ?? []
         };
+        console.log('[CreateSessionDto] Transform Result (standard):', JSON.stringify(result));
+        return result;
     })
     readonly session_context?: SessionContext;
 
@@ -155,6 +165,9 @@ export class CreateSessionDto {
     @IsOptional()
     @IsString({ message: 'User ID must be a string' })
     readonly user_id?: string;
+
+    @IsOptional()
+    readonly fingerprint?: any;
 }
 
 /**

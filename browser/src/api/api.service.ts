@@ -487,6 +487,8 @@ export class ApiService {
       const sessionContext = SessionContext.FromJson(
         JSON.stringify(createSessionDto),
       );
+      this.logger.log(`[CreateSession] DTO JSON: ${JSON.stringify(createSessionDto)}`);
+      this.logger.log(`[CreateSession] Parsed Context: ${JSON.stringify(sessionContext)}`);
       const sessionId = await this.runtime.createSession(
         sessionContext,
         createSessionDto.session_id,
@@ -494,6 +496,7 @@ export class ApiService {
         createSessionDto.session_context?.width,
         createSessionDto.session_context?.height,
         createSessionDto.user_id,
+        createSessionDto.fingerprint,
       );
       return responseMessage({ session_id: sessionId });
     } catch (error) {

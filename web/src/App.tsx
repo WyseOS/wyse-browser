@@ -1,6 +1,7 @@
 import { Routes, Route, NavLink } from "react-router-dom";
 import Flows from "@/pages/flow";
 import Profiles from "@/pages/profiles";
+import Sessions from "@/pages/sessions";
 import Proxy from "@/pages/proxy";
 
 
@@ -11,6 +12,7 @@ export default function App() {
       <main className="pt-[72px] h-screen w-full overflow-y-auto">
         <Routes>
           <Route path="/" element={<Flows />} />
+          <Route path="/session" element={<Sessions />} />
           <Route path="/proxy/:type?" element={<Proxy />} />
           <Route path="/profile/:type?" element={<Profiles />}></Route>
         </Routes>
@@ -32,6 +34,7 @@ export function Header() {
       </div>
       <nav className="flex items-center space-x-1 bg-secondary/50 p-1 rounded-lg border border-border">
         <NavButton to="/profile" label="Profile" />
+        <NavButton to="/session" label="Session" />
         <NavButton to="/proxy" label="Proxy" />
         <NavButton to="/" label="Work Flow" />
       </nav>

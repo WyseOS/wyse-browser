@@ -6,15 +6,46 @@ import {
 } from "@mui/material";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import CreateProfile from "./addProfile";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import List from "./list";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+
+// Map of profile_id -> session_id for active sessions
+type ActiveSessionsMap = Record<string, string>;
 
 export default function Index() {
   const { profileList, setProfileList } = useStore();
   const { type = "" } = useParams();
   const [editItem, setEditItem] = useState<any>();
+  const [activeSessions, setActiveSessions] = useState<ActiveSessionsMap>({});
   const navigate = useNavigate();
+
+  // Fetch active sessions and build profile_id -> session_id mapping
+  const fetchActiveSessions = useCallback(async () => {
+    try {
+      const resp = await fetch("/api/sessions/list");
+      const data = await resp.json();
+      if (data.code === 0 && data.data?.sessions) {
+        const sessionsMap: ActiveSessionsMap = {};
+        for (const session of data.data.sessions) {
+          if (session.user_id) {
+            sessionsMap[session.user_id] = session.id;
+          }
+        }
+        setActiveSessions(sessionsMap);
+      }
+    } catch (e) {
+      console.error("Failed to fetch active sessions:", e);
+    }
+  }, []);
+
+  // Fetch sessions on mount and periodically
+  useEffect(() => {
+    fetchActiveSessions();
+    const interval = setInterval(fetchActiveSessions, 5000);
+    return () => clearInterval(interval);
+  }, [fetchActiveSessions]);
+
   const callbackFetch = useCallback(async () => {
     const result = await fetch(`/api/profile/list`, {
       headers: { "Access-Control-Allow-Origin": "*" },
@@ -25,25 +56,62 @@ export default function Index() {
       navigate("/profile");
     }
   }, []);
+
   const handleEdit = (item: any) => {
+    // Check if session is active
+    if (activeSessions[item.profile_id]) {
+      alert("无法编辑：该 Profile 有正在运行的会话，请先停止会话。");
+      return;
+    }
     setEditItem(item);
     navigate("/profile/update");
   };
-  const handleDelete = (id: string) => {
-    console.log("id", id);
-    fetch("/api/profile/delete", {
-      method: "POST",
-      body: JSON.stringify({ profile_id: id }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }).then(async (resp) => {
+
+  const handleDelete = async (id: string) => {
+    console.log("delete id", id);
+
+    // If session is active, release it first
+    const sessionId = activeSessions[id];
+    if (sessionId) {
+      try {
+        const releaseResp = await fetch(`/api/session/${sessionId}/release`);
+        const releaseData = await releaseResp.json();
+        if (releaseData.code !== 0) {
+          alert("停止会话失败: " + (releaseData.result || "Unknown error"));
+          return;
+        }
+        // Update active sessions state
+        setActiveSessions((prev) => {
+          const newMap = { ...prev };
+          delete newMap[id];
+          return newMap;
+        });
+      } catch (e) {
+        console.error("Failed to release session:", e);
+        alert("停止会话失败");
+        return;
+      }
+    }
+
+    // Now delete the profile
+    try {
+      const resp = await fetch("/api/profile/delete", {
+        method: "POST",
+        body: JSON.stringify({ profile_id: id }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
       const data = await resp.json();
       if (data.code === 0) {
         callbackFetch();
       }
-    });
+    } catch (e) {
+      console.error("Failed to delete profile:", e);
+      alert("删除 Profile 失败");
+    }
   };
+
   const handleLaunch = async (item: any) => {
     console.log("launch", item);
     // Parse proxy string if it exists
@@ -52,14 +120,31 @@ export default function Index() {
       proxyConfig.server = item.proxy;
     }
 
+    // Parse fingerprint if it exists (stored as JSON string in profile)
+    let fingerprintData = null;
+    if (item.fingerprint) {
+      try {
+        fingerprintData = typeof item.fingerprint === 'string'
+          ? JSON.parse(item.fingerprint)
+          : item.fingerprint;
+      } catch (e) {
+        console.warn("Failed to parse fingerprint:", e);
+      }
+    }
+
     const payload = {
       user_id: item.profile_id, // Map profile_id to user_id for persistence
       session_context: {
         width: parseInt(item.width) || 1440,
         height: parseInt(item.height) || 900,
         proxy: proxyConfig,
-        // Add other fields if necessary
+        userAgent: fingerprintData?.fingerprint?.navigator?.userAgent || "",
+        timezone: fingerprintData?.fingerprint?.navigator?.timezone || "America/New_York",
+        solveCaptcha: item.solve_captcha ?? false,
+        isSaveVideo: item.is_save_video ?? false,
+        timeout: item.timeout ?? 20000,
       },
+      fingerprint: fingerprintData, // Pass the full fingerprint object
     };
 
     try {
@@ -72,18 +157,47 @@ export default function Index() {
       });
       const data = await resp.json();
       if (data.code === 0) {
-        // Successfully launched
-        // Maybe show a specific success message or just log it
         console.log("Session launched:", data);
-        // We could also navigate to the session view if we had one, but strict requirements weren't given.
-        // For now, we stay on the list.
+        // Update active sessions state
+        setActiveSessions((prev) => ({
+          ...prev,
+          [item.profile_id]: data.data.session_id,
+        }));
       } else {
         console.error("Failed to launch session:", data);
-        alert("Failed to launch session: " + (data.result || "Unknown error"));
+        alert("启动会话失败: " + (data.result || "Unknown error"));
       }
     } catch (e) {
       console.error("Error launching session:", e);
-      alert("Error launching session");
+      alert("启动会话失败");
+    }
+  };
+
+  const handleStop = async (item: any) => {
+    const sessionId = activeSessions[item.profile_id];
+    if (!sessionId) {
+      console.warn("No active session for profile:", item.profile_id);
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/api/session/${sessionId}/release`);
+      const data = await resp.json();
+      if (data.code === 0) {
+        console.log("Session stopped:", data);
+        // Update active sessions state
+        setActiveSessions((prev) => {
+          const newMap = { ...prev };
+          delete newMap[item.profile_id];
+          return newMap;
+        });
+      } else {
+        console.error("Failed to stop session:", data);
+        alert("停止会话失败: " + (data.result || "Unknown error"));
+      }
+    } catch (e) {
+      console.error("Error stopping session:", e);
+      alert("停止会话失败");
     }
   };
 
@@ -110,32 +224,6 @@ export default function Index() {
             </Link>
           )}
         </Box>
-        {/* <Box className="space-y-4">
-          {profileList.map((item) => {
-            return (
-              <Box
-                className="flex items-center justify-between rounded-md p-2"
-                key={item.profile_name}
-                sx={(theme) => ({
-                  background: alpha("#000", 0.1),
-                })}
-              >
-                <Typography>{item.profile_name}</Typography>
-                <Typography className="flex items-center space-x-1 justify-end">
-                  <IconButton size="small" onClick={() => handleEdit(item)}>
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDelete(item.profile_id)}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Typography>
-              </Box>
-            );
-          })}
-        </Box> */}
       </Box>
       <Box className="flex justify-center">
         {type === "create" ? <CreateProfile callback={callbackFetch} /> : null}
@@ -148,6 +236,8 @@ export default function Index() {
             setEditItem={handleEdit}
             handleDelete={handleDelete}
             handleLaunch={handleLaunch}
+            handleStop={handleStop}
+            activeSessions={activeSessions}
           />
         ) : null}
       </Box>

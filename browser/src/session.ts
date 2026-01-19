@@ -124,7 +124,7 @@ export class Session {
     this.isSaveVideo = context.isSaveVideo;
     this.createdAt = new Date();
     this.initializationStartTime = new Date();
-    this.solveCaptcha = DefaultSolveCaptcha;
+    this.solveCaptcha = context.solveCaptcha;
     this.proxy = context.proxy;
     if (this.proxy === undefined || this.proxy.server === undefined || this.proxy.server === '') {
       this.proxy = proxy;
@@ -1088,6 +1088,7 @@ export class Session {
 
     return {
       id: this.id,
+      user_id: this.userId,
       session_context: this.sessionContext.toJson(),
       is_initialized: this.isInitialized,
       timeout: this.timeout,
