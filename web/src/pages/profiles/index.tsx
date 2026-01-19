@@ -102,15 +102,17 @@ export default function Index() {
             ) : null}
             <Typography variant="h6">Profiles</Typography>
           </div>
-          <Button
-            component={Link}
-            to={`/profile/create`}
-            variant="contained"
-            color="primary"
-            size="small"
-          >
-            Add new
-          </Button>
+          {!type && (
+            <Button
+              component={Link}
+              to={`/profile/create`}
+              variant="contained"
+              color="primary"
+              size="small"
+            >
+              Add new
+            </Button>
+          )}
         </Box>
         {/* <Box className="space-y-4">
           {profileList.map((item) => {

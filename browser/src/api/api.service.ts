@@ -103,7 +103,7 @@ export class ApiService {
     }
   }
 
-  private loadMetadata(type: MetadataType, name: string): string {
+  private loadMetadata(type: MetadataType, name: string): any {
     let resolvePath = '';
     if (type === MetadataType.FLOW) {
       resolvePath = path.resolve(
@@ -259,6 +259,9 @@ export class ApiService {
     const proxy_list = dirNames
       .map((name) => {
         const data = this.loadMetadata(MetadataType.PROXY, name);
+        if (data && !data.proxy_id) {
+          data.proxy_id = name;
+        }
         return data;
       })
       .filter((metadata) => metadata !== null);

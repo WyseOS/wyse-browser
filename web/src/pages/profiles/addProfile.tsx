@@ -108,6 +108,9 @@ export default function AddProfile(props: any) {
               fullWidth
               onChange={formik.handleChange}
             >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
               {proxyList.map((proxyItem: any, index: number) => (
                 <MenuItem
                   value={proxyItem.proxy_id}

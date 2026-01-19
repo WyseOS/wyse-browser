@@ -64,17 +64,19 @@ export default function Index() {
                 </IconButton>
               </Typography>
             ) : null}
-            <Typography variant="h6">Profiles</Typography>
+            <Typography variant="h6">Proxy</Typography>
           </div>
-          <Button
-            component={Link}
-            to={`/proxy/create`}
-            variant="contained"
-            color="primary"
-            size="small"
-          >
-            Add new
-          </Button>
+          {!type && (
+            <Button
+              component={Link}
+              to={`/proxy/create`}
+              variant="contained"
+              color="primary"
+              size="small"
+            >
+              Add new
+            </Button>
+          )}
         </Box>
         {/* <Box className="space-y-4">
           {proxyList.map((item) => {
