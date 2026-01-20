@@ -3,65 +3,78 @@ import { alpha } from "@mui/material/styles";
 
 const darkTheme = {
   primary: {
-    main: "#5721F9",
+    main: "#8b5cf6", // Violet-500
     contrastText: "#FFF",
   },
   secondary: {
-    main: alpha("#5721F9", 0.3),
-    contrastText: "#5721F9",
+    main: alpha("#8b5cf6", 0.3),
+    contrastText: "#8b5cf6",
   },
   background: {
-    default: "inherit",
-    paper: "#2D3133B2",
-    light: "#2D3133",
+    default: "transparent", // Let body gradient show through
+    paper: "#1e293b", // Slate-800
+    light: "#334155", // Slate-700
   },
   error: {
-    main: "#FE5F57",
+    main: "#ef4444",
   },
   info: {
-    main: "#2D3133",
+    main: "#334155",
     contrastText: "#FFF",
   },
   text: {
-    primary: "#FFF",
-    secondary: "#F1F1F1B2",
+    primary: "#f8fafc", // Slate-50
+    secondary: "#94a3b8", // Slate-400
   },
-  divider: "#E8ECEF6F",
+  divider: "rgba(255, 255, 255, 0.08)",
 };
 
 const lightTheme = {
   primary: {
-    main: "#5721F9",
-    contrastText: "#FFF",
+    main: "#3b82f6", // Doodle blue
+    contrastText: "#fff",
   },
   secondary: {
-    main: alpha("#5721F9", 0.3),
-    contrastText: "#5721F9",
+    main: "#fca5a5",
+    contrastText: "#374151",
   },
   background: {
-    default: "#FFF",
-    paper: "#E2E2E2",
-    light: "#E8ECEF",
+    default: "#fdfbf7", // Warm paper
+    paper: "#ffffff",
+    light: "#f3f4f6", // lighter gray
   },
   error: {
-    main: "#FE5F57",
+    main: "#ef4444",
   },
   info: {
-    main: "#E8ECEF",
-    contrastText: "#1b1b1b",
+    main: "#e5e7eb",
+    contrastText: "#374151",
   },
   text: {
-    primary: "#1b1b1b",
-    secondary: "#9A9FA5",
+    primary: "#374151",
+    secondary: "#6b7280",
   },
-  divider: "#E8ECEF",
+  divider: "#374151", // Dark graphite divider
 };
 
 export const getThemeOptions = (theme: APP_Theme) => {
-  const currentTheme = theme === APP_Theme.Dark ? darkTheme : lightTheme;
+  // Ignore the passed theme, force light for sketch style
+  const currentTheme = lightTheme;
   return createTheme({
+    typography: {
+      fontFamily: "'Patrick Hand', cursive, sans-serif",
+      h1: { fontWeight: 400 },
+      h2: { fontWeight: 400 },
+      h3: { fontWeight: 400 },
+      h4: { fontWeight: 400 },
+      h5: { fontWeight: 400 },
+      h6: { fontWeight: 400, fontSize: "1.25rem" },
+      button: { textTransform: "none", fontWeight: 400, fontSize: "1.1rem" },
+      body1: { fontSize: "1.1rem" },
+      body2: { fontSize: "1rem" },
+    },
     palette: {
-      mode: theme,
+      mode: "light",
       ...currentTheme,
     },
     components: {
@@ -76,103 +89,64 @@ export const getThemeOptions = (theme: APP_Theme) => {
       MuiButtonBase: {
         styleOverrides: {
           root: {
-            borderRadius: "12px",
-            textTransform: "capitalize",
-            boxShadow: "0 0 0 !important",
-            background: alpha(currentTheme.background.paper, 0.5),
-            borderWidth: "1px",
+            borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+            boxShadow: "none",
           },
         },
       },
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: "12px",
-            textTransform: "capitalize",
-            boxShadow: "0 0 0 !important",
-            borderWidth: "1px !important",
+            borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+            textTransform: "none",
+            boxShadow: "2px 2px 0 #374151",
+            border: "2px solid #374151",
+            fontWeight: 400,
+            padding: "8px 24px",
+            backgroundColor: "#fff",
+            color: "#374151",
+            "&:hover": {
+              backgroundColor: "#fff",
+              boxShadow: "4px 4px 0 #374151",
+              transform: "translate(-1px, -1px)",
+            },
+            "&:active": {
+              boxShadow: "1px 1px 0 #374151",
+              transform: "translate(1px, 1px)",
+            },
           },
-          sizeLarge: {
-            padding: "14px 24px",
+          containedPrimary: {
+            backgroundColor: currentTheme.primary.main,
+            color: "#fff",
+            "&:hover": {
+              backgroundColor: alpha(currentTheme.primary.main, 0.9),
+            },
           },
-          sizeMedium: {
-            padding: "10px 12px",
-          },
-          sizeSmall: {
-            padding: "4px 8px",
-            borderRadius: "32px",
-          },
-          textInherit: {
-            color: currentTheme.info.contrastText,
-          },
-          containedInherit: {
-            color: currentTheme.info.contrastText,
-            borderColor: currentTheme.divider,
-            background: alpha(currentTheme.background.paper, 0.5),
-          },
-          outlinedInherit: {
-            borderColor: currentTheme.divider,
-            borderWidth: "2px",
-          },
+          // Force outlined style logic for most buttons to fit the sketch theme
+          outlined: {
+            // inherit root styles
+          }
         },
       },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            paddingRight: 0,
-            border: 0,
-            "&:focus": {
-              border: 0,
+            borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+            backgroundColor: "#fff",
+            "& fieldset": {
+              borderWidth: "2px",
+              borderColor: "#374151",
             },
-            padding: "12px 16px",
+            "&:hover fieldset": {
+              borderColor: "#000",
+            },
+            "&.Mui-focused fieldset": {
+              borderColor: currentTheme.primary.main,
+              borderWidth: "2px",
+            },
           },
           input: {
-            padding: 0,
-            lineHeight: 1.5,
-          },
-        },
-      },
-      MuiIconButton: {
-        styleOverrides: {
-          root: {
-            color: currentTheme.info.contrastText,
-            background: currentTheme.background.light,
-            borderRadius: "30px",
-            padding: "4px",
-          },
-          colorInherit: {
-            color: currentTheme.info.contrastText,
-            borderColor: currentTheme.divider,
-          },
-        },
-      },
-      MuiDialog: {
-        styleOverrides: {
-          paper: {
-            backgroundColor: `${currentTheme.background.default}`,
-            minWidth: 320,
-            margin: 0,
-            "@media screen and (max-width: 768px)": {
-              width: "90%",
-            },
-          },
-        },
-      },
-      MuiDialogContent: {
-        styleOverrides: {
-          root: {
-            "@media screen and (max-width: 768px)": {
-              padding: "0 16px 16px",
-            },
-          },
-        },
-      },
-      MuiDialogTitle: {
-        styleOverrides: {
-          root: {
-            "@media screen and (max-width: 768px)": {
-              padding: "16px",
-            },
+            padding: "12px 16px",
           },
         },
       },
@@ -180,7 +154,38 @@ export const getThemeOptions = (theme: APP_Theme) => {
         styleOverrides: {
           root: {
             backgroundImage: "none",
-            boxShadow: "unset",
+            borderRadius: "4px",
+            border: "2px solid #374151", // Boxy sketch border
+            boxShadow: "4px 4px 0 rgba(0,0,0,0.1)",
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: currentTheme.background.paper,
+            borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+            boxShadow: "8px 8px 0 rgba(0,0,0,0.2)",
+            border: "3px solid #374151",
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            borderRadius: "4px", // Simple highlight for list items
+            margin: "2px 4px",
+            "&:hover": {
+              backgroundColor: alpha("#374151", 0.1),
+              border: "1px dashed #374151"
+            },
+            "&.Mui-selected": {
+              backgroundColor: alpha(currentTheme.primary.main, 0.1),
+              fontWeight: 700,
+              "&:hover": {
+                backgroundColor: alpha(currentTheme.primary.main, 0.2),
+              },
+            },
           },
         },
       },
@@ -194,3 +199,4 @@ export enum APP_Theme {
 }
 
 export default getThemeOptions(APP_Theme.Light);
+

@@ -281,6 +281,12 @@ export class ApiController {
     return res.status(HttpStatus.OK).json(response);
   }
 
+  @Get('/fingerprint/generate')
+  async getFingerprint(@Res() res: ExpressResponse) {
+    const response = this.apiService.generateFingerprint();
+    return res.status(HttpStatus.OK).json(response);
+  }
+
   @Post('/browser/action')
   async browserAction(
     @Body() browserActionDto: BrowserActionDto,

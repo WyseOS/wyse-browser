@@ -104,6 +104,21 @@ export class CreateProfileDto {
   @IsString({ message: 'height name must be a string' })
   @Transform(({ value }) => value || '800')
   readonly height: string;
+
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => value ?? false)
+  readonly solve_captcha: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => value ?? false)
+  readonly is_save_video: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Transform(({ value }) => value ?? 20000)
+  readonly timeout: number;
 }
 export class UpdateProfileDto {
   @IsString({ message: 'profile_id name must be a string' })
@@ -133,4 +148,19 @@ export class UpdateProfileDto {
   @IsString({ message: 'height name must be a string' })
   @Transform(({ value }) => value || '800')
   readonly height: string;
+
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => value ?? false)
+  readonly solve_captcha: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => value ?? false)
+  readonly is_save_video: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Transform(({ value }) => value ?? 20000)
+  readonly timeout: number;
 }

@@ -1,22 +1,17 @@
 import {
-  alpha,
   Box,
-  Button,
-  Chip,
   IconButton,
   Typography,
 } from "@mui/material";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import useStore from "@/store/global";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ProxyCreate from "./addProxy";
 import List from "./list";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 export default function Index() {
-  const { proxyList, profileList, setProxyList } = useStore();
+  const { proxyList, setProxyList } = useStore();
   const { type = "" } = useParams();
   const [editItem, setEditItem] = useState<any>();
   const navigate = useNavigate();
@@ -64,17 +59,16 @@ export default function Index() {
                 </IconButton>
               </Typography>
             ) : null}
-            <Typography variant="h6">Profiles</Typography>
+            <Typography variant="h6">Proxy</Typography>
           </div>
-          <Button
-            component={Link}
-            to={`/proxy/create`}
-            variant="contained"
-            color="primary"
-            size="small"
-          >
-            Add new
-          </Button>
+          {!type && (
+            <Link
+              to={`/proxy/create`}
+              className="btn-primary no-underline"
+            >
+              Add new
+            </Link>
+          )}
         </Box>
         {/* <Box className="space-y-4">
           {proxyList.map((item) => {

@@ -1,7 +1,6 @@
 // store.js
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import store from "store2";
 
 interface FlowProps {
   name: string;
@@ -26,33 +25,13 @@ const useStore = create<AppState>()(
   persist(
     (set) => ({
       flows: [],
-      setFlows: (value: FlowProps[]) =>
-        set((state: AppState) => {
-          return {
-            flows: value,
-          };
-        }),
+      setFlows: (value: FlowProps[]) => set({ flows: value }),
       worklets: [],
-      setWorklets: (value: FlowProps[]) =>
-        set((state: AppState) => {
-          return {
-            worklets: value,
-          };
-        }),
+      setWorklets: (value: FlowProps[]) => set({ worklets: value }),
       proxyList: [],
-      setProxyList: (value: any[]) =>
-        set((state: AppState) => {
-          return {
-            proxyList: value,
-          };
-        }),
+      setProxyList: (value: any[]) => set({ proxyList: value }),
       profileList: [],
-      setProfileList: (value: any[]) =>
-        set((state: AppState) => {
-          return {
-            profileList: value,
-          };
-        }),
+      setProfileList: (value: any[]) => set({ profileList: value }),
     }),
     {
       name: "global",

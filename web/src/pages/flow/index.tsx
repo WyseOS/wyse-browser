@@ -10,16 +10,13 @@ import {
   Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import { Typography } from "@mui/material";
+
 import { DatabaseSchemaNode } from "@/components/database-schema-node";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
+
 import useStore from "@/store/global";
 import { isArray, isObject, isEmpty } from "lodash";
 import { v4 as uuidv4 } from "uuid";
-import Button from "@mui/material/Button";
+
 
 const nodeTypes = {
   databaseSchema: DatabaseSchemaNode,
@@ -105,30 +102,28 @@ function Flow(props: any) {
       fitView
       attributionPosition="bottom-left"
     >
-      <Box className="update-node__controls absolute left-0 top-4 z-[9999] w-full flex justify-between px-4">
-        <Select
-          sx={{ width: 400 }}
+      <div className="absolute left-6 top-6 z-10 flex items-center space-x-3 bg-white/90 backdrop-blur p-2 rounded-lg shadow-sm border border-border">
+        <select
           value={activeFlow}
           onChange={handleChangeFlow}
+          className="select-clean"
+          style={{ width: 240 }}
         >
           {flowsData.map((item: any, index: number) => {
             return (
-              <MenuItem id={`${item}${index}`} value={index} key={index}>
+              <option id={`${item}${index}`} value={index} key={index}>
                 {item.name}
-              </MenuItem>
+              </option>
             );
           })}
-        </Select>
-        <Box>
-          <Button onClick={handleSave} color="primary" variant="contained">
-            Save
-          </Button>
-        </Box>
-        {/*  <Box>
-          <Typography>Node name</Typography>
-          <OutlinedInput value={''} onChange={(e) => setNodeName(e.target.value)}/>
-        </Box> */}
-      </Box>
+        </select>
+        <button
+          onClick={handleSave}
+          className="btn-primary"
+        >
+          Save Flow
+        </button>
+      </div>
       <MiniMap bgColor="#FFF" />
       <Controls />
       <Background />
@@ -143,12 +138,13 @@ export default function App() {
       const nodeWorklets: any = worklets.find(
         (item) => item.name === flowNode.name
       );
-      const actions = isArray(nodeWorklets.actions)
-        ? nodeWorklets.actions
-        : Object.entries(nodeWorklets.actions).map((item: any) => ({
-            ...item[1],
-            name: item[0],
-          }));
+      const nodeActions = nodeWorklets?.actions || [];
+      const actions = isArray(nodeActions)
+        ? nodeActions
+        : Object.entries(nodeActions).map((item: any) => ({
+          ...item[1],
+          name: item[0],
+        }));
       return {
         id: `${flowNode.name}-${flowIndex}-${flowNodeIndex}`,
         position: { x: flowNodeIndex * 400, y: 0 },
@@ -204,9 +200,9 @@ export default function App() {
     const actions = isArray(worklet.actions)
       ? worklet.actions
       : Object.entries(worklet.actions).map((item: any) => ({
-          ...item[1],
-          name: item[0],
-        }));
+        ...item[1],
+        name: item[0],
+      }));
     setAddWorklets((state) => {
       return state.concat({
         id: `${worklet.name}-${uuidv4()}`.toString(),
@@ -233,36 +229,53 @@ export default function App() {
   };
 
   return (
-    <Box
-      sx={{ width: "100vw", height: "100vh" }}
-      className="relative flex space-x-2"
-    >
-      <Paper className="basis-[260px] p-4 space-y-6">
-        <Typography variant="h5">Worklets</Typography>
-        {worklets.map((item, index) => {
-          return (
-            <div
-              key={item.name}
-              className="cursor-pointer"
-              draggable={true}
-              onDragStart={(e) => console.log("onDragStart")}
-              onDragEnd={(e) => handleDragItem(e, item)}
-              id={`item${index}`}
-            >
-              {item.name}
-            </div>
-          );
-        })}
-      </Paper>
-      <Box className="flex-1 relaitve">
-        {isEmpty(refactorData) ? null : (
+    <div className="relative flex h-full w-full gap-4 p-4">
+      {/* Sidebar - Worklets */}
+      <div className="flex w-[280px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="border-b border-border bg-muted/40 p-4">
+          <h2 className="text-lg font-semibold text-foreground">
+            Worklets
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Drag items to the canvas
+          </p>
+        </div>
+
+        <div className="flex-1 space-y-2 overflow-y-auto p-3">
+          {worklets.map((item, index) => {
+            return (
+              <div
+                key={item.name}
+                className="group flex cursor-grab items-center rounded-lg border border-border bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md active:cursor-grabbing"
+                draggable={true}
+                onDragStart={(e) => console.log("onDragStart")}
+                onDragEnd={(e) => handleDragItem(e, item)}
+                id={`item${index}`}
+              >
+                <div className="mr-3 h-3 w-3 rounded-full bg-blue-400 ring-2 ring-blue-100"></div>
+                <span className="font-medium text-foreground">
+                  {item.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Canvas Area */}
+      <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-white shadow-sm ring-1 ring-black/5">
+        {isEmpty(refactorData) ? (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            No flows available
+          </div>
+        ) : (
           <Flow
             flowsData={refactorData}
             addNodes={addWorklets}
             onSave={handleSave}
           />
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
