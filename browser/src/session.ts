@@ -295,8 +295,6 @@ export class Session {
               }
             }
 
-
-            // 优先级: 传入的指纹 > 本地加载的指纹 > 生成新指纹
             if (this.fingerprintData) {
               this.logger.log(`Using provided/loaded fingerprint for session ${this.id}`);
             } else {
@@ -304,7 +302,6 @@ export class Session {
               this.fingerprintData = fingerprintGen.getFingerprint();
 
               if (this.fingerprintData) {
-                // 如果是持久化用户，保存新生成的指纹
                 if (this.userId) {
                   const userDataDir = path.resolve("./user_data/" + this.userId);
                   const fingerprintPath = path.join(userDataDir, 'fingerprint.json');
@@ -363,8 +360,6 @@ export class Session {
             }
           );
 
-
-          // 优先级: 传入的指纹 > 本地加载的指纹 > 生成新指纹
           if (this.fingerprintData) {
             this.logger.log(`Using provided/loaded fingerprint for session ${this.id}`);
           } else {
@@ -372,7 +367,6 @@ export class Session {
             this.fingerprintData = fingerprintGen.getFingerprint();
 
             if (this.fingerprintData) {
-              // 如果是持久化用户，保存新生成的指纹
               if (this.userId) {
                 const userDataDir = path.resolve("./user_data/" + this.userId);
                 const fingerprintPath = path.join(userDataDir, 'fingerprint.json');
@@ -422,6 +416,63 @@ export class Session {
               }
             }
           }
+        } else {
+          this.page = await this.browserContext.newPage();
+        }
+
+        if (this.isInitializationCancelled) {
+          throw new Error('Initialization was cancelled');
+        }
+
+        try {
+          this.cdpSession = await this.browserContext.newCDPSession(this.page);
+          this.logger.log(`Session ${this.id}: CDP session created successfully`);
+        } catch (error) {
+          this.logger.error(`Session ${this.id}: Failed to create CDP session: ${error.message}`);
+          throw new Error(`CDP session creation failed: ${error.message}`);
+        }
+
+        this.page.setDefaultTimeout(this.timeout);
+
+        if (this.page_devtool_frontend_host.includes("localhost")) {
+          this.page_devtool_frontend_host = `${this.page_devtool_frontend_host}:${this.wsPort}`;
+        }
+        if (this.page_devtool_ws_host.includes("localhost")) {
+          this.page_devtool_ws_host = `${this.page_devtool_ws_host}:${this.wsPort}`;
+        }
+      } else {
+        // Ephemeral session: no extension, no userId
+        browserArgs.push('--disable-extensions');
+        this.browser = await chromium.launch(launchOptions);
+
+        this.browserContext = await newInjectedContext(
+          this.browser,
+          {
+            fingerprintOptions: fingerprintOptions,
+            newContextOptions: {
+              viewport: { width: this.width, height: this.height },
+            },
+          }
+        );
+
+        const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
+        this.fingerprintData = fingerprintGen.getFingerprint();
+
+        if (!this.fingerprintData) {
+          this.logger.warn('Failed to generate fingerprint, using default');
+          this.fingerprintData = GetDefaultFingerprint();
+        }
+
+        if (this.isInitializationCancelled) {
+          throw new Error('Initialization was cancelled');
+        }
+
+        await this.setupDownloadHandler();
+
+        this.logger.log(`Session ${this.id}: Starting page initialization`);
+        let pages = await this.browserContext.pages();
+        if (pages && pages.length > 0) {
+          this.page = pages[0];
         } else {
           this.page = await this.browserContext.newPage();
         }

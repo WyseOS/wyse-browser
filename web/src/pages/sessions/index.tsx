@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import useStore from "@/store/global";
+import { IconButton } from "@mui/material";
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 
 interface SessionPage {
     index: number;
@@ -30,6 +33,8 @@ export default function Sessions() {
     const [sessions, setSessions] = useState<Session[]>([]);
     // Store active tab index for each session: sessionId -> pageIndex
     const [activeTabs, setActiveTabs] = useState<Record<string, number>>({});
+    // Store which session is currently maximized
+    const [maximizedSessionId, setMaximizedSessionId] = useState<string | null>(null);
 
     const fetchSessions = useCallback(async () => {
         try {
@@ -75,19 +80,29 @@ export default function Sessions() {
         }));
     };
 
+    const toggleMaximize = (sessionId: string) => {
+        setMaximizedSessionId(prev => (prev === sessionId ? null : sessionId));
+    };
+
+    const activeSessions = maximizedSessionId
+        ? sessions.filter(s => s.id === maximizedSessionId)
+        : sessions;
+
     return (
-        <div className="p-6 w-full h-full overflow-y-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                {sessions.map((session) => (
+        <div className={`p-6 w-full h-full overflow-y-auto ${maximizedSessionId ? 'overflow-hidden p-0' : ''}`}>
+            <div className={maximizedSessionId ? "w-full h-full" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4"}>
+                {activeSessions.map((session) => (
                     <SessionCard
                         key={session.id}
                         session={session}
                         profileList={profileList}
                         activeTab={activeTabs[session.id] ?? 0}
                         onTabChange={(index) => toggleTab(session.id, index)}
+                        isMaximized={maximizedSessionId === session.id}
+                        onToggleMaximize={() => toggleMaximize(session.id)}
                     />
                 ))}
-                {sessions.length === 0 && (
+                {!maximizedSessionId && sessions.length === 0 && (
                     <div className="col-span-full flex flex-col items-center justify-center p-12 text-muted-foreground bg-secondary/10 rounded-lg border border-border border-dashed">
                         <span className="text-lg font-medium">No active sessions</span>
                         <span className="text-sm">Launch a profile to see it here.</span>
@@ -102,12 +117,16 @@ function SessionCard({
     session,
     profileList,
     activeTab,
-    onTabChange
+    onTabChange,
+    isMaximized,
+    onToggleMaximize
 }: {
     session: Session;
     profileList: any[];
     activeTab: number;
     onTabChange: (i: number) => void;
+    isMaximized: boolean;
+    onToggleMaximize: () => void;
 }) {
     const profile = profileList.find(p => p.profile_id === session.user_id);
     const displayName = profile ? profile.profile_name : (session.user_id || session.id.slice(0, 8));
@@ -117,19 +136,25 @@ function SessionCard({
     const sortedPages = [...session.pages].sort((a, b) => a.index - b.index);
 
     return (
-        <div className="flex flex-col rounded-lg border border-border bg-card text-card-foreground shadow-sm overflow-hidden h-[300px]">
-            <div className="p-2 border-b border-border bg-muted/30 flex items-center justify-between">
-                <h3 className="font-semibold text-sm truncate" title={session.user_id}>
-                    {displayName}
-                </h3>
-                <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-secondary rounded">
-                    {sortedPages.length} tabs
-                </span>
+        <div className={`flex flex-col rounded-lg border border-border bg-card text-card-foreground shadow-sm overflow-hidden ${isMaximized ? 'h-full w-full rounded-none border-0' : 'h-[300px]'}`}>
+            <div className="p-2 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
+                <div className="flex items-center space-x-2 overflow-hidden">
+                    <h3 className="font-semibold text-sm truncate" title={session.user_id}>
+                        {displayName}
+                    </h3>
+                    <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-secondary rounded shrink-0">
+                        {sortedPages.length} tabs
+                    </span>
+                </div>
+
+                <IconButton onClick={(e) => { e.stopPropagation(); onToggleMaximize(); }} size="small">
+                    {isMaximized ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
+                </IconButton>
             </div>
 
             {/* Tab Navigation if multiple pages */}
             {sortedPages.length > 1 && (
-                <div className="flex overflow-x-auto border-b border-border/50 scrollbar-hide">
+                <div className="flex overflow-x-auto border-b border-border/50 scrollbar-hide shrink-0">
                     {sortedPages.map((page) => (
                         <button
                             key={page.page_id}
