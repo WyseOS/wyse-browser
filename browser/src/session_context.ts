@@ -25,11 +25,14 @@ export class SessionContext {
     wsPort: number;
     extensionNames: string[];
 
+    solveCaptcha: boolean;
+
     constructor() {
         this.logger = new Logger(SessionContext.name);
         this.cookies = [];
         this.origins = [];
         this.isSaveVideo = false;
+        this.solveCaptcha = false;
         this.proxy = { server: '', username: '', password: '' };
         this.wsPort = 0;
         this.extensionNames = [];
@@ -45,6 +48,14 @@ export class SessionContext {
 
             if (json.session_context?.is_save_video !== undefined) {
                 this.isSaveVideo = json.session_context.is_save_video;
+            } else if (json.session_context?.isSaveVideo !== undefined) {
+                this.isSaveVideo = json.session_context.isSaveVideo;
+            }
+
+            if (json.session_context?.solve_captcha !== undefined) {
+                this.solveCaptcha = json.session_context.solve_captcha;
+            } else if (json.session_context?.solveCaptcha !== undefined) {
+                this.solveCaptcha = json.session_context.solveCaptcha;
             }
 
             if (json.session_context?.proxy !== undefined) {
@@ -53,6 +64,8 @@ export class SessionContext {
 
             if (json.session_context?.extension_names !== undefined) {
                 this.extensionNames = json.session_context.extension_names;
+            } else if (json.session_context?.extensionNames !== undefined) {
+                this.extensionNames = json.session_context.extensionNames;
             }
 
             if (Array.isArray(json.session_context.cookies)) {

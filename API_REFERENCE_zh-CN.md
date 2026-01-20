@@ -25,13 +25,14 @@ http://127.0.0.1:13100
 
 | Method | Endpoint | Description | Parameters |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/session/create` | 创建新的浏览器会话。 | **请求体**: `CreateSessionDto`<br>- `session_context` (对象, 可选)<br>- `session_id` (字符串, 可选) |
+| `POST` | `/api/session/create` | 创建新的浏览器会话。 | **请求体**: `CreateSessionDto`<br>- `session_context` (对象, 可选)<br>- `session_id` (字符串, 可选)<br>- `user_id` (字符串, 可选) |
 | `POST` | `/api/session/:sessionId/add_init_script` | 向会话添加初始化脚本。 | **路径**: `sessionId` (字符串, 必填)<br>**请求体**: `AddInitScriptDto`<br>- `script` (字符串, 必填) |
 | `GET` | `/api/session/:sessionId` | 检索特定会话的详细信息。 | **路径**: `sessionId` (字符串, 必填) |
 | `GET` | `/api/session/:sessionId/context` | 获取会话的上下文（cookies、本地存储）。 | **路径**: `sessionId` (字符串, 必填) |
 | `GET` | `/api/session/:sessionId/release` | 关闭并清理会话。 | **路径**: `sessionId` (字符串, 必填) |
 | `GET` | `/api/sessions/list` | 列出所有活动会话。 | _无_ |
 | `GET` | `/api/session/:sessionId/screenshot` | 在会话中截取当前页面的屏幕截图。 | **路径**: `sessionId` (字符串, 必填) |
+| `GET` | `/api/fingerprint/generate` | 生成一个随机的指纹。 | _无_ |
 
 ### 浏览器操作 🎬
 
@@ -52,8 +53,8 @@ http://127.0.0.1:13100
 
 | Method | Endpoint | Description | Parameters |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/flow/create` | 从预定义的清单创建新的流程实例。 | **请求体**: `CreateFlowDto`<br>- `flow_name` (字符串, 必填)<br>- `session_id` (字符串, 可选)<br>- `is_save_video` (布尔值, 可选)<br>- `extension_names` (字符串数组, 可选) |
-| `POST` | `/api/flow/deploy` | 使用内联 JSON 定义部署新流程。 | **请求体**: `DeployFlowDto`<br>- `flow` (对象, 必填)<br>- `session_id` (字符串, 可选)<br>- `is_save_video` (布尔值, 可选)<br>- `extension_names` (字符串数组, 可选) |
+| `POST` | `/api/flow/create` | 从预定义的清单创建新的流程实例。 | **请求体**: `CreateFlowDto`<br>- `flow_name` (字符串, 必填)<br>- `session_id` (字符串, 可选)<br>- `user_id` (字符串, 可选)<br>- `is_save_video` (布尔值, 可选)<br>- `extension_names` (字符串数组, 可选) |
+| `POST` | `/api/flow/deploy` | 使用内联 JSON 定义部署新流程。 | **请求体**: `DeployFlowDto`<br>- `flow` (对象, 必填)<br>- `session_id` (字符串, 可选)<br>- `user_id` (字符串, 可选)<br>- `is_save_video` (布尔值, 可选)<br>- `extension_names` (字符串数组, 可选) |
 | `POST` | `/api/flow/fire` | 在运行中的流程实例中执行操作。 | **请求体**: `FireFlowDto`<br>- `flow_instance_id` (字符串, 必填)<br>- `action_name` (字符串, 可选, 默认: `action_flow_start`)<br>- `data` (对象, 必填) |
 | `GET` | `/api/flow/list` | 列出所有活动的流程实例。 | _无_ |
 

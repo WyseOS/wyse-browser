@@ -23,6 +23,9 @@ import {
   ProfileMetadataPath,
   MaxPagesNumberPerSession,
   GetDateYYYYMMDD,
+  DefaultTimeout,
+  DefaultWidth,
+  DefaultHeight,
 } from '../constants';
 import { Runtime } from '../runtime';
 import { MetadataType } from '../constants';
@@ -40,6 +43,7 @@ import {
   DeleteProfileDto,
   UpdateProfileDto,
 } from './dto/api.proxy.dto';
+import { FingerprintGenerator } from "fingerprint-generator";
 
 @Injectable()
 export class ApiService {
@@ -55,6 +59,8 @@ export class ApiService {
     is_save_video: boolean,
     extension_names: string[],
     context: string, // 用于错误日志的上下文
+    user_id?: string,
+    fingerprint?: any,
   ): Promise<{ sessionId: string; error?: Response }> {
     if (!session_id) {
       let sessionContext = SessionContext.Default();
@@ -62,7 +68,7 @@ export class ApiService {
       sessionContext.extensionNames = extension_names;
       const newSessionId = uuidv4();
       try {
-        await this.runtime.createSession(sessionContext, newSessionId);
+        await this.runtime.createSession(sessionContext, newSessionId, DefaultTimeout, DefaultWidth, DefaultHeight, user_id, fingerprint);
         this.logger.log(
           `Created new session for ${context}, session_id: ${newSessionId}`,
         );
@@ -97,7 +103,7 @@ export class ApiService {
     }
   }
 
-  private loadMetadata(type: MetadataType, name: string): string {
+  private loadMetadata(type: MetadataType, name: string): any {
     let resolvePath = '';
     if (type === MetadataType.FLOW) {
       resolvePath = path.resolve(
@@ -144,6 +150,7 @@ export class ApiService {
       createFlowDto.is_save_video,
       createFlowDto.extension_names,
       'createFlow',
+      createFlowDto.user_id,
     );
     if (error) {
       return error;
@@ -167,6 +174,7 @@ export class ApiService {
       deployFlowDto.is_save_video,
       deployFlowDto.extension_names,
       'deployFlow',
+      deployFlowDto.user_id,
     );
     if (error) {
       return error;
@@ -251,6 +259,9 @@ export class ApiService {
     const proxy_list = dirNames
       .map((name) => {
         const data = this.loadMetadata(MetadataType.PROXY, name);
+        if (data && !data.proxy_id) {
+          data.proxy_id = name;
+        }
         return data;
       })
       .filter((metadata) => metadata !== null);
@@ -479,6 +490,11 @@ export class ApiService {
       const sessionId = await this.runtime.createSession(
         sessionContext,
         createSessionDto.session_id,
+        createSessionDto.session_context?.timeout,
+        createSessionDto.session_context?.width,
+        createSessionDto.session_context?.height,
+        createSessionDto.user_id,
+        createSessionDto.fingerprint,
       );
       return responseMessage({ session_id: sessionId });
     } catch (error) {
@@ -788,57 +804,65 @@ export class ApiService {
 
       // 关闭页面
       await page.close();
-
-      // 处理视频上传
-      if (session.isSaveVideo && videoPath) {
-        try {
-          let filename =
-            'screenshot/' +
-            today +
-            '/' +
-            sessionId +
-            '/video_' +
-            path.basename(videoPath);
-
-          // 等待视频文件写入完成
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-
-          // 检查文件是否存在
-          if (!fs.existsSync(videoPath)) {
-            this.logger.warn(`Video file not found: ${videoPath}`);
-            return responseMessage({ result: '', video_url: '' });
-          }
-
-          const stats = await fs.promises.stat(videoPath);
-          if (stats.size === 0) {
-            this.logger.error(`Video is empty when upload: ${videoPath}`);
-            return responseMessage({ result: '', video_url: '' });
-          }
-
-          ossUrl = await OSSFiles.upload(filename, videoPath);
-
-          // 清理视频文件
-          try {
-            await page.video().delete();
-          } catch (error) {
-            this.logger.warn(`Error deleting video file: ${error.message}`);
-          }
-        } catch (error) {
-          this.logger.error(`Error processing video: ${error.message}`);
-        }
-      }
-
       this.logger.log(
         `Page released for session: ${sessionId}, page_id: ${pageId}`,
       );
-      return responseMessage({ result: '', video_url: ossUrl });
+
+      // 上传视频到 OSS
+      if (videoPath && fs.existsSync(videoPath)) {
+        try {
+          const stats = fs.statSync(videoPath);
+          const fileSizeInBytes = stats.size;
+          if (fileSizeInBytes > 0) {
+            ossUrl = await OSSFiles.upload(
+              `videos/${today}/${sessionId}_${pageId}.webm`,
+              videoPath,
+            );
+            this.logger.log(`Video uploaded to OSS: ${ossUrl}`);
+            // 删除本地视频文件
+            fs.unlinkSync(videoPath);
+          }
+        } catch (error) {
+          this.logger.error(`Failed to upload video to OSS: ${error.message}`);
+        }
+      }
+
+      return responseMessage({
+        result: 'Page released successfully',
+        video_url: ossUrl,
+      });
     } catch (error) {
       this.logger.error(
         `Release page failed, session: ${sessionId}, page: ${pageId}, error: ${error.message}`,
       );
       return responseInternalError({
         session_id: sessionId,
-        page_id: pageId,
+        result: error.message,
+        video_url: '',
+      });
+    }
+  }
+
+  generateFingerprint(): Response {
+    try {
+      const fingerprintOptions = {
+        devices: ["desktop" as const],
+        operatingSystems: ["linux" as const],
+        browsers: [{ name: "chrome" as const, minVersion: 120 }],
+        locales: ["en-US", "en"],
+        mockWebRTC: false,
+        slim: true,
+      };
+
+      const fingerprintGen = new FingerprintGenerator(fingerprintOptions);
+      const fingerprint = fingerprintGen.getFingerprint();
+
+      return responseMessage({
+        fingerprint: fingerprint,
+      });
+    } catch (error) {
+      this.logger.error(`Generate fingerprint failed: ${error.message}`);
+      return responseInternalError({
         result: error.message,
       });
     }

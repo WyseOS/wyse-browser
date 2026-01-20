@@ -1,8 +1,6 @@
 import { useFormik } from "formik";
 import * as yup from "yup";
-import { MenuItem, OutlinedInput, Typography } from "@mui/material";
-import Select from "@mui/material/Select";
-import Button from "@mui/material/Button";
+import { Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 
 const validationSchemaForProxy = yup.object({
@@ -28,13 +26,13 @@ export default function AddProxy(props: any) {
     initialValues: initalData
       ? initalData
       : {
-          proxy_name: "",
-          host: "127.0.0.1",
-          proxyType: "all",
-          port: "8080",
-          username: "",
-          password: "",
-        },
+        proxy_name: "",
+        host: "127.0.0.1",
+        proxyType: "all",
+        port: "8080",
+        username: "",
+        password: "",
+      },
     validationSchema: validationSchemaForProxy,
     onSubmit: () => {
       // console.log(1111);
@@ -69,28 +67,25 @@ export default function AddProxy(props: any) {
                 {item.replace("_", " ")}
               </Typography>
               {item === "proxyType" ? (
-                <Select
+                <select
+                  name="proxyType"
                   value={values.proxyType}
-                  fullWidth
+                  className="select-clean uppercase"
                   onChange={proxyFormik.handleChange}
                 >
                   {Object.keys(ProxyType).map((proxyItem: any) => (
-                    <MenuItem
+                    <option
                       value={proxyItem}
                       key={proxyItem}
-                      onClick={() =>
-                        proxyFormik.setFieldValue("proxyType", proxyItem)
-                      }
-                      className="uppercase"
                     >
                       {proxyItem.replace("_", " ")}
-                    </MenuItem>
+                    </option>
                   ))}
-                </Select>
+                </select>
               ) : (
-                <OutlinedInput
+                <input
                   name={item}
-                  fullWidth
+                  className="input-clean"
                   value={values[item] || ""}
                   onChange={proxyFormik.handleChange}
                 />
@@ -99,12 +94,14 @@ export default function AddProxy(props: any) {
           );
         })}
       <div className="flex items-center space-x-4">
-        <Button variant="outlined" fullWidth component={Link} to="/proxy">
-          cancel
-        </Button>
-        <Button variant="contained" fullWidth onClick={handleCreateProxy}>
+        <button className="btn-outline w-full" onClick={() => props.callback()}>
+          <Link to="/proxy" className="w-full h-full flex items-center justify-center no-underline text-inherit">
+            cancel
+          </Link>
+        </button>
+        <button className="btn-primary w-full" onClick={handleCreateProxy}>
           Submit
-        </Button>
+        </button>
       </div>
     </div>
   );
