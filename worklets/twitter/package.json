@@ -10,7 +10,7 @@
     "@types/minimist": "^1.2.5",
     "commander": "^12.1.0",
     "dayjs": "^1.11.13",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "minimist": "^1.2.8",
     "papaparse": "^5.4.1",
     "playwright": "1.54.2",
